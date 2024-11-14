@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "crm-shveya"
+version = "0.1.0"
+description = ""
+authors = ["kubanuch03 <zazaka71@gmail.com>"]
+readme = "README.md"
+package-mode = false 
+
+[tool.poetry.dependencies]
+python = "^3.12"
+django = "5.1.3"
+python-decouple = "3.8"
+psycopg2-binary = "2.9.10"
+django-unfold = "0.41.0"
+pillow = "^11.0.0"
+
+
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

@@ -1,0 +1,11 @@
+services:
+
+  db:
+    container_name: db
+    expose:
+      - "5435"
+    image: postgres:17
+    ports:
+      - "5435:5435"
+    env_file:
+      - .env
