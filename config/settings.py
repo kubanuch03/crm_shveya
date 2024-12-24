@@ -38,12 +38,15 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-
+    #lib
+    'rest_framework',
+    'rest_framework_simplejwt',
     #app
     'app_users',
+    'app_productions',
+
     # 'app_accounting',
     # 'app_analytics',
-    # 'app_productions',
 ]
 
 ######################################################################
@@ -65,7 +68,7 @@ MIDDLEWARE = [
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        "DIRS": [os.path.join(BASE_DIR, "templates")],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -121,7 +124,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 ######################################################################
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'ru'
 
 TIME_ZONE = 'Asia/Bishkek'
 
@@ -134,7 +137,10 @@ USE_TZ = True
 # Staticfiles
 ######################################################################
 STATIC_URL = "/static/"
-STATIC_ROOT = os.path.join(BASE_DIR, 'static')  
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')  # Collect static files into this directory
+STATICFILES_DIRS = [
+    BASE_DIR / "static",  # Path to additional static files (excluding static_root)
+]
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
@@ -143,7 +149,8 @@ MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 ######################################################################
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
-
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 10,
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ],
