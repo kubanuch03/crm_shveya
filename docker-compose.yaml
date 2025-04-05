@@ -17,7 +17,7 @@ services:
       timeout: 2s
       retries: 10
 
-  web:
+  web_crm:
     
     build:
       context: .
@@ -30,7 +30,7 @@ services:
       - .env
     depends_on:
       - db
-
+ 
 volumes:
   pg_data:
   
