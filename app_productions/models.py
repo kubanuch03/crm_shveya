@@ -48,10 +48,8 @@ class Product_Model(models.Model):
 
 class Product(models.Model):
     title = models.CharField(max_length=255, blank=True, null=True, verbose_name='Название')
-    quentity = models.PositiveIntegerField(default=0, blank=True, null=True)
-    price = models.PositiveIntegerField(default=0)
-
-
+    quentity = models.PositiveIntegerField(default=0, blank=True, null=True, verbose_name='Кол-во')
+    price = models.PositiveIntegerField(null=True, blank=True,verbose_name='Цена')
 
     color = models.ManyToManyField(Color, blank=True, verbose_name='Цвет')
     size = models.ManyToManyField(Size, blank=True, verbose_name='Размер  ')
@@ -67,5 +65,9 @@ class Product(models.Model):
         verbose_name = "Товар"
         verbose_name_plural = "Товар"
 
+
+class Cargo(models.Model):
+    title = models.CharField(max_length=255)
+    coming = models.DateTimeField()
 
 

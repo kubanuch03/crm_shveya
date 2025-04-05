@@ -44,15 +44,23 @@ INSTALLED_APPS = [
     #app
     'app_users',
     'app_productions',
+    'app_packaging',
+    'app_utug',
+    'app_tailor',
+    'app_history',
+    'app_croi',
+    'app_logistics',
 
     # 'app_accounting',
     # 'app_analytics',
 ]
 
+
 ######################################################################
 # Middleware
 ######################################################################
 MIDDLEWARE = [
+    "simple_history.middleware.HistoryRequestMiddleware",
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -88,10 +96,10 @@ TEMPLATES = [
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "USER": config("DATABASE_USER", "postgres"),
-        "PASSWORD": config("DATABASE_PASSWORD", "postgres"),
-        "NAME": config("DATABASE_NAME", "chveya"),
-        "HOST": config("DATABASE_HOST", "localhost"),
+        "USER": config("POSTGRES_USER", "postgres"),
+        "PASSWORD": config("POSTGRES_PASSWORD", "postgres"),
+        "NAME": config("POSTGRES_DB", "chveya"),
+        "HOST": config("POSTGRES_HOST", "db"),
         "PORT": "5432",
         "TEST": {
             "NAME": "test",
@@ -104,7 +112,11 @@ DATABASES = {
 
 AUTH_USER_MODEL = "app_users.User"
 
-
+CSRF_TRUSTED_ORIGINS = [
+    "http://127.0.0.1",
+    "http://localhost",
+    "http://localhost:89899",
+]
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
@@ -161,3 +173,8 @@ SIMPLE_JWT = {
     "REFRESH_TOKEN_LIFETIME": timedelta(days=60),
 }
 
+
+# import django
+# from .auto_create_start.create_pier_user import SettingsFactory
+# django.setup()
+# settings_users_pier = SettingsFactory().create_all()

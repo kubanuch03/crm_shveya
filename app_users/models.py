@@ -3,7 +3,6 @@ from django.contrib.auth.models import AbstractUser, Permission
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth.models import Group
 
-
 from .managers import CustomUserManager
 
 
@@ -45,7 +44,6 @@ class User(AbstractUser):
     is_buttons = models.BooleanField(default=False, verbose_name="Пуговица") 
     is_tailor = models.BooleanField(default=False, verbose_name="Портной") # тигуучу
     is_povar = models.BooleanField(default=False, verbose_name="Повар")
-
     EMAIL_FIELD = ['username']
     groups = models.ManyToManyField(
         'auth.Group', 
