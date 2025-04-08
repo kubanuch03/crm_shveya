@@ -99,7 +99,7 @@ DATABASES = {
         "USER": config("POSTGRES_USER", "postgres"),
         "PASSWORD": config("POSTGRES_PASSWORD", "postgres"),
         "NAME": config("POSTGRES_DB", "chveya"),
-        "HOST": config("POSTGRES_HOST", "db"),
+        "HOST": config("POSTGRES_HOST", "localhost"),
         "PORT": "5432",
         "TEST": {
             "NAME": "test",
@@ -149,10 +149,10 @@ USE_TZ = True
 # Staticfiles
 ######################################################################
 STATIC_URL = "/static/"
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')  # Collect static files into this directory
-STATICFILES_DIRS = [
-    BASE_DIR / "static",  # Path to additional static files (excluding static_root)
-]
+STATIC_ROOT = os.path.join(BASE_DIR, 'static')  # Collect static files into this directory
+# STATICFILES_DIRS = [
+#     BASE_DIR / "static",  # Path to additional static files (excluding static_root)
+# ]
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
