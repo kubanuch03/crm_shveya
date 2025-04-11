@@ -1,6 +1,6 @@
 from django.urls import reverse_lazy
 from django.utils.translation import gettext_lazy as _
-
+from django.templatetags.static import static
 UNFOLD = {
     "SITE_HEADER": _("CRM система"),
     "SITE_TITLE": _("CRM система"),
@@ -8,6 +8,18 @@ UNFOLD = {
     "SHOW_HISTORY": True,
     "THEME": "dark",
     "SHOW_HISTORY": True,
+    "BORDER_RADIUS": "6px",
+   
+    "EXTENSIONS": {
+        "modeltranslation": {
+            "flags": {
+                "en": "🇬🇧",
+                "fr": "🇫🇷",
+                "nl": "🇧🇪",
+            },
+        },
+    },
+    
     "SIDEBAR": {
         "show_search": True,
         "show_all_applications": True,
@@ -30,39 +42,39 @@ UNFOLD = {
             },
     
             {
-                "title": _("Товар"),
+                "title": _("Производтсво"),
                 "separator": True,
                 "items": [
                     {
-                        "title": _("Процесс Карго"),
+                        "title": _("Производственная Партия"),
                         "icon": "apparel",
-                        "link": reverse_lazy("admin:app_logistics_logistics_changelist"),
+                        "link": reverse_lazy("admin:app_productions_productionbatch_changelist"),
                     },
                     {
+                        "title": _("Товары Входящие в партию"),
+                        "icon": "apparel",
+                        "link": reverse_lazy("admin:app_productions_batchproduct_changelist"),
+                    },
+                     {
+                        "title": _("Этап производственного процесса"),
+                        "icon": "apparel",
+                        "link": reverse_lazy("admin:app_productions_processstage_changelist"),
+                    },
+                     {
                         "title": _("Товар"),
                         "icon": "apparel",
                         "link": reverse_lazy("admin:app_productions_product_changelist"),
                     },
-                     {
-                        "title": _("Процесс Упаковки"),
-                        "icon": "apparel",
-                        "link": reverse_lazy("admin:app_packaging_productprocess_changelist"),
-                    },
-                     {
-                        "title": _("Процесс Утюг"),
-                        "icon": "apparel",
-                        "link": reverse_lazy("admin:app_utug_utugprocess_changelist"),
-                    },
-                    {
-                        "title": _("Процесс Шитья"),
-                        "icon": "apparel",
-                        "link": reverse_lazy("admin:app_tailor_tailorprocess_changelist"),
-                    },
-                    {
-                        "title": _("Процесс Кроя"),
-                        "icon": "apparel",
-                        "link": reverse_lazy("admin:app_croi_croi_changelist"),
-                    },
+                    # {
+                    #     "title": _("Процесс Шитья"),
+                    #     "icon": "apparel",
+                    #     "link": reverse_lazy("admin:app_tailor_tailorprocess_changelist"),
+                    # },
+                    # {
+                    #     "title": _("Процесс Кроя"),
+                    #     "icon": "apparel",
+                    #     "link": reverse_lazy("admin:app_croi_croi_changelist"),
+                    # },
                     
                     ],
                     

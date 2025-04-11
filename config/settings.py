@@ -44,12 +44,12 @@ INSTALLED_APPS = [
     #app
     'app_users',
     'app_productions',
-    'app_packaging',
-    'app_utug',
-    'app_tailor',
+    # 'app_packaging',
+    # 'app_utug',
+    # 'app_tailor',
     'app_history',
-    'app_croi',
-    'app_logistics',
+    # 'app_croi',
+    # 'app_logistics',
 
     # 'app_accounting',
     # 'app_analytics',

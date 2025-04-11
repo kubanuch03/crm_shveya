@@ -1,9 +1,80 @@
 from django.contrib import admin
 from .models import Product, Color, Size, Product_Model, Category
 from unfold.admin import ModelAdmin
+from .models import ProductionBatch, ProcessStage, BatchProduct, Product, Color, Size, Product_Model, Category
 
+class ProductionBatchAdmin(ModelAdmin):
+    list_display = ['batch_number','title', 'planned_completion_date', 'notes', 'is_completed', 'created_at']
+    list_display_links = ['title','created_at']
+    readonly_fields = [
+        "created_at",
+    ]
+    fieldsets = (
+        (
+            "Производственные Партии",
+            {
+                "fields": (
+                    # "FaceEvent_preview",
+                    # "id",
+                    "batch_number",
+                    "title",
+                    "planned_completion_date",
+                    "notes",
+                    "is_completed",
+                    
+                    "created_at",
+                )
+            },
+        ),
+    )
 
+class BatchProductAdmin(ModelAdmin):
+    list_display = ['batch','product', 'planned_quantity', ]
+    list_display_links = ['batch','product']
+  
+    fieldsets = (
+        (
+            "Производственные Партии",
+            {
+                "fields": (
+                    # "FaceEvent_preview",
+                    # "id",
+                    "batch",
+                    "product",
+                    "planned_quantity",
+                )
+            },
+        ),
+    )
 
+class ProcessStageAdmin(ModelAdmin):
+    list_display = ['batch_product','stage_type', 
+                    'assigned_user','status','start_date','end_date',
+                    'quantity_completed','quantity_defective','previous_stage', 
+                    'confirmed_by','confirmed_at','created_at', 'updated_at', 
+                    ]
+    list_display_links = ['batch_product','stage_type', 
+                    'assigned_user','status','start_date','end_date',
+                    'quantity_completed','quantity_defective','previous_stage', 
+                    'confirmed_by','confirmed_at','created_at', 'updated_at', 
+                    ]
+    readonly_fields = [
+        "created_at",
+        "updated_at",
+    ]
+    fieldsets = (
+        (
+            "Производственные Партии",
+            {
+                "fields": (
+                    'batch_product','stage_type', 
+                    'assigned_user','status','start_date','end_date',
+                    'quantity_completed','quantity_defective','previous_stage', 
+                    'confirmed_by','confirmed_at','created_at', 'updated_at',
+                )
+            },
+        ),
+    )
 
 class ColorAdmin(ModelAdmin):
     list_display = ['id','title','created_at']
@@ -133,8 +204,11 @@ class ProductAdmin(ModelAdmin):
             }
         )
     )
-admin.site.register(Color, ColorAdmin)
+admin.site.register(ProductionBatch, ProductionBatchAdmin)
+admin.site.register(BatchProduct, BatchProductAdmin)
+admin.site.register(ProcessStage, ProcessStageAdmin)
 admin.site.register(Size, SizeAdmin)
+admin.site.register(Color, ColorAdmin)
 admin.site.register(Product_Model, ProductModelAdmin)
 admin.site.register(Category, CategoryAdmin)
 admin.site.register(Product, ProductAdmin)
