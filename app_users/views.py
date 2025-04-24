@@ -2,12 +2,16 @@
 from rest_framework import views, status, permissions
 from rest_framework.response import Response
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from django.utils.translation import gettext_lazy as _
+from django.urls import reverse_lazy
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.views.generic import UpdateView
 
 from config.custom_loggs.custom_log import setup_logger
 
 from .serializers import UserSerializer, UserRegisterSerializer, UserLoginSerializer
 from .models import User
-
+from .forms import UserProfileForm
 
 from .services.user_register import UserRegisterServices
 
@@ -15,6 +19,14 @@ from .services.user_register import UserRegisterServices
 logger = setup_logger(__name__)
 
 
+def very_simple_user_menu_items(request):
+    print("--- DEBUG: ВЫЗВАНА very_simple_user_menu_items ---")
+    items = [
+        {"title": "Профиль Меню 1", "link": "/admin/", "icon": "person"},
+        {"title": "Выход Меню 2", "link": "/admin/logout/", "icon": "logout"},
+    ]
+    print(f"--- DEBUG: very_simple_user_menu_items ВОЗВРАЩАЕТ: {items} ---")
+    return items
 
 #======================================================
 # User CRUD
@@ -68,12 +80,3 @@ class UserLoginView(views.APIView):
 #======================================================
 # dashboard callback
 #======================================================
-def dashboard_callback(request, context):
-    total_users = User.objects.count()  
-    latest_user = User.objects.latest('date_joined')  
-
-    context.update({
-        "total_users": total_users,
-        "latest_user": latest_user,
-    })
-    return context

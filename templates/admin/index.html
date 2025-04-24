@@ -1,22 +1,27 @@
 {% extends 'unfold/layouts/base_simple.html' %}
-{% load static %}
+{% load static %} {# Если будете использовать {% trans %}, добавьте {% load i18n %} #}
+
 {% block title %}
     Панель управления | {{ site_title|default:"Администрирование" }}
 {% endblock %}
 
+
 {% block content %}
-    <h1 class="text-2xl font-bold mb-4 flex items-center">
-        CRM система для Цеха!
-    </h1>
 
-    <h1 class="text-2xl font-bold mb-4 flex items-center">
-        <img src="{% static 'icon/icon_crm.png' %}" alt="User Avatar" class="w-10 h-10 rounded-full mr-3">
-        Добро пожаловать, {{ request.user.username }}!
-    </h1>
-
+    {% comment %} Блок с приветствием и кнопкой Профиль {% endcomment %}
+    <div class="flex items-center justify-between mb-6">
+        <h1 class="text-2xl font-bold flex items-center">
+            <img src="{% static 'icon/icon_crm.png' %}" alt="User Avatar" class="w-10 h-10 rounded-full mr-3">
+            Добро пожаловать, {{ request.user.username }}!
+        </h1>
+        <div>
+            <a href="{% url 'accounts:profile' %}" class="bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition duration-200">
+                 Мой профиль
+            </a>
+        </div>
+    </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        div.
         <div class="p-6 rounded-lg shadow-md">
             <h2 class="text-xl font-medium">Всего пользователей</h2>
             <p class="text-3xl font-bold">{{ total_users }}</p>

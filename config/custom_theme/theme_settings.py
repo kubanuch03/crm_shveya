@@ -1,24 +1,37 @@
 from django.urls import reverse_lazy
 from django.utils.translation import gettext_lazy as _
 from django.templatetags.static import static
+
+
+
+def custom_user_menu_items(request):
+    print("--- DEBUG: Вызвана функция custom_user_menu_items ---") # Добавим вывод в консоль
+    items = [
+        {
+            "title": "ТЕСТ Профиль", # Простой текст без _()
+            "link": "/admin/",     # Простая рабочая ссылка (на главную админки)
+            "icon": "star",        # Простая иконка
+            # Убираем permission для теста
+        },
+        {
+            "title": "ТЕСТ Выход",
+            "link": reverse_lazy("admin:logout"), # Оставим, т.к. обычно работает
+            "icon": "logout",
+        },
+    ]
+    print(f"--- DEBUG: Возвращаемые элементы: {items} ---") # Выведем результат
+    return items
+
+
+
 UNFOLD = {
     "SITE_HEADER": _("CRM система"),
     "SITE_TITLE": _("CRM система"),
     "SITE_URL": "/admin/",
-    "SHOW_HISTORY": True,
+    # "SHOW_HISTORY": True,
     "THEME": "dark",
-    "SHOW_HISTORY": True,
     "BORDER_RADIUS": "6px",
-   
-    "EXTENSIONS": {
-        "modeltranslation": {
-            "flags": {
-                "en": "🇬🇧",
-                "fr": "🇫🇷",
-                "nl": "🇧🇪",
-            },
-        },
-    },
+    "USER_MENU_ITEMS": "app_users.views.very_simple_user_menu_items",
     
     "SIDEBAR": {
         "show_search": True,
@@ -38,9 +51,15 @@ UNFOLD = {
                         "icon": "group",
                         "link": reverse_lazy("admin:auth_group_changelist"),
                     },
+                    # {
+                    #     "title": "Мой профиль",
+                    #     "icon": "person",
+                    #     "link": reverse_lazy("accounts:profile"),
+                    #     # "permission": lambda request: request.user.is_authenticated,
+                    # },
                 ],
             },
-    
+
             {
                 "title": _("Производтсво"),
                 "separator": True,
@@ -65,20 +84,9 @@ UNFOLD = {
                         "icon": "apparel",
                         "link": reverse_lazy("admin:app_productions_product_changelist"),
                     },
-                    # {
-                    #     "title": _("Процесс Шитья"),
-                    #     "icon": "apparel",
-                    #     "link": reverse_lazy("admin:app_tailor_tailorprocess_changelist"),
-                    # },
-                    # {
-                    #     "title": _("Процесс Кроя"),
-                    #     "icon": "apparel",
-                    #     "link": reverse_lazy("admin:app_croi_croi_changelist"),
-                    # },
+               
                     
                     ],
-                    
-                   
 
             },
            
@@ -107,11 +115,20 @@ UNFOLD = {
         ],
     },
     
-    "DASHBOARD_CALLBACK": "app_users.views.dashboard_callback",
-
+    "DASHBOARD_CALLBACK": "app_accounting.views.dashboard_callback",
+    "TABS": [
+        {
+        
+            "items": [
+                {
+                    "title": ("Your custom title"),
+                    "link": reverse_lazy("admin:app_users_user_changelist"),
+                    # "permission": "sample_app.permission_callback",
+                },
+            ],
+        },
+    ],
 }
-
-
 def environment_callback(request):
     """
     Callback has to return a list of two values represeting text value and the color
@@ -122,4 +139,3 @@ def environment_callback(request):
 
 def badge_callback(request):
     return 3
-

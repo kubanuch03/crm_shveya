@@ -1,0 +1,78 @@
+{% comment %}
+  Шаблон для UserProfileView (UpdateView).
+  Предполагается, что view передает стандартный контекст UpdateView (включая 'form')
+  и дополнительно 'title'.
+{% endcomment %}
+
+{% load i18n static %} {# Загружаем теги локализации и статики #}
+
+{% block title %}
+    {{ title|default:_("Мой профиль") }} | {{ site_title|default:_("Администрирование Django") }}
+{% endblock %}
+
+{% block content %}
+    {# Заголовок страницы #}
+    <h1 class="text-2xl font-semibold text-gray-900 dark:text-white mb-6">
+        {{ title|default:_("Редактирование профиля") }}
+    </h1>
+
+    {# Контейнер для формы с отступами и стилями Unfold/Tailwind #}
+    <div class="bg-white dark:bg-gray-800/50 shadow-sm ring-1 ring-gray-950/5 dark:ring-white/10 rounded-lg">
+        <form method="post" action=""> {# action="" отправляет на текущий URL #}
+            {% csrf_token %} {# Обязательный CSRF токен #}
+
+            <div class="p-6"> {# Основной контент формы с паддингом #}
+                {# Отображение не полейных ошибок (если есть) #}
+                {% if form.non_field_errors %}
+                    <div class="mb-4 p-4 bg-red-50 dark:bg-red-800/20 border border-red-200 dark:border-red-600/30 rounded-lg">
+                        {% for error in form.non_field_errors %}
+                            <p class="text-sm text-red-700 dark:text-red-300">{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                {# Итерация по полям формы #}
+                <div class="grid grid-cols-1 gap-6"> {# Можно использовать сетку для расположения полей #}
+                    {% for field in form %}
+                        <div class="col-span-1"> {# Каждое поле в своей ячейке #}
+                            {# Метка поля #}
+                            <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                                {{ field.label }}
+                                {% if field.field.required %}
+                                    <span class="text-red-600 dark:text-red-400">*</span>
+                                {% endif %}
+                            </label>
+
+                            {# Само поле ввода #}
+                            {# Django добавит классы, но можно добавить свои, если стандартных не хватает #}
+                            {# Unfold обычно хорошо стилизует стандартные поля ввода #}
+                            {{ field }}
+
+                            {# Ошибки для конкретного поля #}
+                            {% if field.errors %}
+                                <div class="mt-1">
+                                    {% for error in field.errors %}
+                                        <p class="text-xs text-red-600 dark:text-red-400">{{ error }}</p>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+
+                            {# Текст подсказки #}
+                            {% if field.help_text %}
+                                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ field.help_text|safe }}</p>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            {# Нижняя часть формы с кнопкой сохранения #}
+            <div class="px-6 py-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-white/10 rounded-b-lg flex justify-end">
+                 <button type="submit" class="inline-flex items-center justify-center rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 transition-colors duration-150">
+                    <span class="material-symbols-sharp text-base mr-1">save</span> {# Иконка сохранения #}
+                    {% trans "Сохранить изменения" %}
+                </button>
+            </div>
+        </form>
+    </div>
+{% endblock %}

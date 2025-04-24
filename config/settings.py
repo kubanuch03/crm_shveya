@@ -32,6 +32,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 ######################################################################
 INSTALLED_APPS = [
     "unfold",
+    'app_accounting',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -44,15 +45,8 @@ INSTALLED_APPS = [
     #app
     'app_users',
     'app_productions',
-    # 'app_packaging',
-    # 'app_utug',
-    # 'app_tailor',
     'app_history',
-    # 'app_croi',
-    # 'app_logistics',
 
-    # 'app_accounting',
-    # 'app_analytics',
 ]
 
 

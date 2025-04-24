@@ -1,0 +1,77 @@
+{% comment %}
+  Шаблон для UserProfileView БЕЗ наследования от Unfold.
+  Будет выглядеть как простая HTML страница.
+{% endcomment %}
+{% load i18n static %}
+
+<!DOCTYPE html>
+<html lang="{{ request.LANGUAGE_CODE|default:"en" }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title|default:_("Мой профиль") }}</title>
+    {# Сюда можно добавить свои собственные CSS стили, если нужно #}
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input[type="text"], input[type="email"], input[type="password"] {
+            display: block;
+            width: 300px; /* Примерная ширина */
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .errors { color: red; font-size: 0.9em; list-style: none; padding: 0; margin-top: -5px; margin-bottom: 10px; }
+        button { padding: 10px 15px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background-color: #0056b3; }
+    </style>
+</head>
+<body>
+
+    <h1>{{ title|default:_("Редактирование профиля") }}</h1>
+
+    <hr>
+    <h2>{{request.user.username}}</h2>
+    <h2>{{request.user.first_name}}</h2>
+    <form method="post" action="">
+        {% csrf_token %}
+
+        {# Не полейные ошибки #}
+        {% if form.non_field_errors %}
+            <ul class="errors">
+                {% for error in form.non_field_errors %}
+                    <li>{{ error }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+        {# Итерация по полям формы #}
+        {% for field in form %}
+            <div>
+                <label for="{{ field.id_for_label }}">{{ field.label }}:</label>
+                {{ field }} {# Поле ввода #}
+
+                {% if field.errors %}
+                    <ul class="errors">
+                        {% for error in field.errors %}
+                            <li>{{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+
+                {% if field.help_text %}
+                    <p style="font-size: 0.8em; color: #555;">{{ field.help_text|safe }}</p>
+                {% endif %}
+            </div>
+        {% endfor %}
+
+        <br>
+        <button type="submit">{% trans "Сохранить изменения" %}</button>
+    </form>
+
+    <br>
+    <p><a href="{% url 'admin:index' %}">{% trans "Вернуться в админку" %}</a></p> {# Добавляем ссылку для возврата #}
+
+</body>
+</html>

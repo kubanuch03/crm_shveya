@@ -1,7 +1,8 @@
-from django.db import models
+from django.db import models, transaction
 from app_users.models import User
+from django.db.models import F
 
-
+from logger import logger
 
 class Color(models.Model):
     title = models.CharField(max_length=255, blank=True, null=True, verbose_name='Название')
@@ -50,18 +51,21 @@ class Product_Model(models.Model):
 class Product(models.Model):
     title = models.CharField(max_length=255, blank=True, null=True, verbose_name='Название')
     quentity = models.PositiveIntegerField(default=0, blank=True, null=True, verbose_name='Кол-во')
-    price = models.PositiveIntegerField(null=True, blank=True,verbose_name='Цена')
-
     color = models.ManyToManyField(Color, blank=True, verbose_name='Цвет')
     size = models.ManyToManyField(Size, blank=True, verbose_name='Размер ')
     category = models.ManyToManyField(Category, blank=True, verbose_name='Категория')
     product_model = models.ManyToManyField(Product_Model, blank=True, verbose_name='Модель')
+    remains = models.PositiveIntegerField(blank=True, null=True, verbose_name='Осталось произвести')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата создание')
+
 
 
     def __str__(self):
         return f"{self.title}"
-    
+    def save(self, *args, **kwargs):
+        if self.pk is None  and self.remains is None:
+            self.remains = self.quentity
+        super().save(*args, **kwargs)
     class Meta:
         verbose_name = "Товар"
         verbose_name_plural = "Товар"
@@ -78,7 +82,7 @@ class ProductionBatch(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата создания')
 
     def __str__(self):
-        return self.batch_number
+        return f"№:{self.batch_number} {self.title}"
 
     class Meta:
         verbose_name = "Производственная партия"
@@ -88,10 +92,15 @@ class BatchProduct(models.Model):
     """ Товары, входящие в партию, и их плановое количество """
     batch = models.ForeignKey(ProductionBatch, related_name='products_in_batch', on_delete=models.CASCADE, verbose_name='Партия')
     product = models.ForeignKey(Product, on_delete=models.CASCADE, verbose_name='Товар') 
-    planned_quantity = models.PositiveIntegerField(verbose_name='Плановое количество')
+    # planned_quantity = models.PositiveIntegerField(verbose_name='Плановое количество')
+    quantity_finish = models.PositiveIntegerField(
+        default=0,
+        verbose_name='Количество Готово (факт)',
+        help_text='Итоговое количество после завершения всех этапов'
+    )
 
     def __str__(self):
-        return f"{self.product.title} - {self.planned_quantity} шт. (Партия: {self.batch.batch_number})" 
+        return f"{self.product.title} - (Партия: {self.batch.batch_number})" 
 
     class Meta:
         unique_together = ('batch', 'product') 
@@ -138,28 +147,34 @@ class ProcessStage(models.Model):
     confirmed_by = models.ForeignKey(User, related_name='confirmed_stages', null=True, blank=True, on_delete=models.SET_NULL, verbose_name='Подтвердил')
     confirmed_at = models.DateTimeField(null=True, blank=True, verbose_name='Дата подтверждения')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата создания записи этапа')
-    updated_at = models.DateTimeField(auto_now=True)
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Обновлено')
+    close_session = models.BooleanField(default=False)
+    def __str__(self):
+        return f"{self.get_stage_type_display()} - {self.batch_product} ({self.status})"
+
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
     def __str__(self):
         return f"{self.get_stage_type_display()} - {self.batch_product} ({self.status})"
 
-    def clean(self):
-        from django.core.exceptions import ValidationError
-        # Валидация: Нельзя выполнить больше, чем пришло с предыдущего этапа (если он есть)
-        if self.previous_stage and self.previous_stage.status in ['COMPLETED', 'CONFIRMED']:
-             # Учитываем брак предыдущего этапа
-             available_from_previous = self.previous_stage.quantity_completed
-             if self.quantity_completed + self.quantity_defective > available_from_previous:
-                 raise ValidationError(f"Нельзя обработать ({self.quantity_completed + self.quantity_defective}) больше, чем доступно с предыдущего этапа ({available_from_previous}).")
-        # Валидация: Этап шитья не должен иметь предыдущего этапа (обычно)
-        # if self.stage_type == 'SEWING' and self.previous_stage:
-        #     raise ValidationError("Этап шитья не может иметь предыдущего этапа.") # Может быть крой? Тогда логику усложнить.
+    def save(self, *args, **kwargs):
+        
+
+        super().save(*args, **kwargs)
+
+                
+
+               
 
 
     class Meta:
         verbose_name = "Этап процесса"
         verbose_name_plural = "Этапы процессов"
-        ordering = ['batch_product__batch__batch_number', 'batch_product__product__title', 'created_at'] 
+        ordering = ['batch_product__batch__batch_number', 'batch_product__product__title', 'created_at']
+
+
 
 
 # class Cargo(models.Model):

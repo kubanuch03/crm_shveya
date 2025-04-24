@@ -5,7 +5,7 @@ from .models import ProductionBatch, ProcessStage, BatchProduct, Product, Color,
 
 class ProductionBatchAdmin(ModelAdmin):
     list_display = ['batch_number','title', 'planned_completion_date', 'notes', 'is_completed', 'created_at']
-    list_display_links = ['title','created_at']
+    list_display_links = ['batch_number', 'title','created_at']
     readonly_fields = [
         "created_at",
     ]
@@ -29,7 +29,7 @@ class ProductionBatchAdmin(ModelAdmin):
     )
 
 class BatchProductAdmin(ModelAdmin):
-    list_display = ['batch','product', 'planned_quantity', ]
+    list_display = ['batch','product',]
     list_display_links = ['batch','product']
   
     fieldsets = (
@@ -41,7 +41,6 @@ class BatchProductAdmin(ModelAdmin):
                     # "id",
                     "batch",
                     "product",
-                    "planned_quantity",
                 )
             },
         ),
@@ -51,17 +50,18 @@ class ProcessStageAdmin(ModelAdmin):
     list_display = ['batch_product','stage_type', 
                     'assigned_user','status','start_date','end_date',
                     'quantity_completed','quantity_defective','previous_stage', 
-                    'confirmed_by','confirmed_at','created_at', 'updated_at', 
+                    'confirmed_by','confirmed_at'
                     ]
     list_display_links = ['batch_product','stage_type', 
                     'assigned_user','status','start_date','end_date',
                     'quantity_completed','quantity_defective','previous_stage', 
-                    'confirmed_by','confirmed_at','created_at', 'updated_at', 
+                    'confirmed_by','confirmed_at', 
                     ]
     readonly_fields = [
         "created_at",
         "updated_at",
     ]
+    search_fields = ['batch_product__batch__batch_number', 'batch_product__product__title']
     fieldsets = (
         (
             "Производственные Партии",
@@ -171,8 +171,8 @@ class CategoryAdmin(ModelAdmin):
     )
 
 class ProductAdmin(ModelAdmin):
-    list_display = ['id','title', 'quentity', 'price','created_at']
-    list_display_links = ['id','title', 'quentity', 'price','created_at']
+    list_display = ['id','title', 'quentity','remains', 'created_at']
+    list_display_links = ['id','title', 'quentity', 'remains', 'created_at']
 
     search_fields = ("title",)
     ordering = ("-id",)
@@ -187,7 +187,7 @@ class ProductAdmin(ModelAdmin):
                     
                     "title",
                     "quentity",
-                    "price",
+                    "remains",
                     "created_at",
                 )
             },
