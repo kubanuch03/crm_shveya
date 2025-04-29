@@ -40,23 +40,21 @@ UNFOLD = {
             {
                 "title": _("Авторизация и Пользователи"),
                 "separator": False,
+                "permission": lambda request: request.user.is_superuser,
                 "items": [
                     {
                         "title": _("Пользователи"),
                         "icon": "person",
                         "link": reverse_lazy("admin:app_users_user_changelist"),
+                        "permission": lambda request: request.user.is_superuser,
                     },
                     {
                         "title": _("Группы"),
                         "icon": "group",
                         "link": reverse_lazy("admin:auth_group_changelist"),
+                        "permission": lambda request: request.user.is_superuser,
                     },
-                    # {
-                    #     "title": "Мой профиль",
-                    #     "icon": "person",
-                    #     "link": reverse_lazy("accounts:profile"),
-                    #     # "permission": lambda request: request.user.is_authenticated,
-                    # },
+                    
                 ],
             },
 
@@ -98,6 +96,7 @@ UNFOLD = {
                             "title": _("История"),
                             "icon": "history",
                             "link": reverse_lazy("admin:app_history_adminhistorylog_changelist"),
+                            "permission": lambda request: request.user.is_superuser,
                         },
                     ]
             },

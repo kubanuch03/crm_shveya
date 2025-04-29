@@ -1,0 +1,88 @@
+{% extends "base.html" %} {# Унаследуй от твоего базового шаблона, если есть #}
+{% load i18n %} {# Загружаем теги для перевода, если используешь #}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<h1>{{ page_title }}</h1>
+
+{# Отображаем текущий месяц/год #}
+{% get_current_language as LANGUAGE_CODE %}
+{% if LANGUAGE_CODE == 'ru' %}
+    {% load l10n %} {# Для отображения месяца на русском #}
+    <p><strong>{% trans "Месяц" %}:</strong> {{ current_month|date:"F" }} {{ current_year }}</p>
+{% else %}
+     <p><strong>{% trans "Month" %}:</strong> {{ current_month }}/{{ current_year }}</p> {# Простой формат для других языков #}
+{% endif %}
+
+
+{# Кнопка для скачивания XLSX #}
+<div style="margin-bottom: 20px;">
+    <a href="?export=xlsx" class="btn btn-success">{% trans "Скачать XLSX" %}</a> {# Используй свои CSS классы для кнопки #}
+</div>
+
+{# Таблица с отчетом #}
+{% if report_data %}
+    <table class="table table-striped table-bordered"> {# Используй свои CSS классы #}
+        <thead>
+            <tr>
+                <th>{% trans "Пользователь (ФИО)" %}</th>
+                <th>{% trans "Псевдоним" %}</th>
+                <th>{% trans "Тип Этапа" %}</th>
+                <th>{% trans "Выполнено (шт.)" %}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in report_data %}
+                <tr>
+                    <td>{{ item.user_full_name|default:"-" }}</td>
+                    <td>{{ item.username }}</td>
+                    <td>
+                        {# Отображаем читаемое имя этапа #}
+                        {{ stage_choices_dict|get_item:item.stage_type|default:item.stage_type }}
+                        {# Если используешь Django 4+, можно проще: {{ item.get_stage_type_display }} в values() view #}
+                        {# Но передача словаря надежнее для разных версий #}
+                    </td>
+                    <td>{{ item.total_completed }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% else %}
+    <p>{% trans "Нет данных для отображения за текущий месяц." %}</p>
+{% endif %}
+
+{# Небольшой трюк для использования словаря в шаблоне Django < 4 #}
+{% block extra_scripts %}
+    {# Если ты не используешь jQuery или сложный JS, этот блок можно убрать #}
+    <script>
+        // Этот скрипт не обязателен, если фильтр get_item работает.
+        // Добавляем кастомный фильтр шаблона, если его нет
+        // В новых версиях Django можно проще, но это для совместимости
+        {% if not stage_choices_dict|get_item:'' %} {# Проверка, есть ли фильтр #}
+          // Django >= 4.0 обычно имеет filter `get_item` по умолчанию
+          // Если его нет, его можно добавить через templatetags
+          console.warn("Template filter 'get_item' might be missing. Stage names might not display correctly.");
+        {% endif %}
+    </script>
+{% endblock %}
+
+
+{# Добавляем кастомный фильтр шаблона (если нужен и нет встроенного) #}
+{# Создай папку templatetags в твоем приложении (на одном уровне с models.py) #}
+{# Внутри создай __init__.py (пустой) и файл, например, app_filters.py #}
+{# В app_filters.py: #}
+"""
+from django import template
+
+register = template.Library()
+
+@register.filter
+def get_item(dictionary, key):
+    # Безопасно получаем значение из словаря в шаблоне
+    return dictionary.get(key)
+"""
+{# Затем в шаблоне перед использованием: {% load app_filters %} #}
+{# И используй как {{ stage_choices_dict|get_item:item.stage_type }} #}
+
+{% endblock %}

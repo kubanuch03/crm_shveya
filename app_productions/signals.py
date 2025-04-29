@@ -4,7 +4,8 @@ from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from .models import ProcessStage, BatchProduct, ProductionBatch, Product
 from logger import logger
-
+from django.db.models.functions import Coalesce
+from django.db.models import Sum, Value, IntegerField
 
 FINAL_STATUS_FOR_UPDATE = 'CONFIRMED'
 LAST_STAGE_TYPE = 'PACKING'
@@ -14,20 +15,37 @@ LAST_STAGE_TYPE = 'PACKING'
 
 
 
+def update_batch_product_finish_quantity(batch_product):
+    """
+    Пересчитывает и сохраняет quantity_finish для заданного BatchProduct
+    на основе всех его этапов упаковки.
+    """
+    if batch_product is None:
+        return
 
-@receiver(post_delete, sender=ProcessStage)
-def remains_plus_product(sender, instance, using, **kwargs):
-    obj = instance.batch_product.product.title
-    product = Product.objects.filter(title=obj).first()
-    complated = instance.quantity_completed
-    deffective = instance.quantity_defective
-    product_remains = product.remains
+    aggregation = ProcessStage.objects.filter(
+        batch_product=batch_product,
+        stage_type="PACKING"
+    ).aggregate(
+        total_completed=Coalesce(Sum('quantity_completed'), Value(0), output_field=IntegerField()),
+        total_defective=Coalesce(Sum('quantity_defective'), Value(0), output_field=IntegerField())
+    )
 
-    if complated and deffective:
-        product.remains= product_remains+(complated+deffective)
-        product.save()
-    return False
+    new_finish_quantity = aggregation['total_completed'] + aggregation['total_defective']
 
+    if batch_product.quantity_finish != new_finish_quantity:
+        batch_product.quantity_finish = new_finish_quantity
+        batch_product.save(update_fields=['quantity_finish'])
+
+
+@receiver(post_save, sender=ProcessStage)
+def process_stage_post_save(sender, instance, created, **kwargs):
+    """
+    Вызывается после сохранения ProcessStage.
+    Если это этап упаковки, пересчитывает итог для связанного BatchProduct.
+    """
+    if instance.stage_type == "PACKING":
+        update_batch_product_finish_quantity(instance.batch_product)
 
 
 # @receiver(post_save, sender=ProcessStage)
