@@ -12,6 +12,17 @@ class Filial(models.Model):
     def __str__(self):
         return f"{self.title}"
 
+
+STATUS_CHOICE = (
+    ('guest', 'guest'),
+    ('is_technolog', 'is_technolog'),
+    ('is_upakovka', 'is_upakovka'),
+    ('is_utug', 'is_utug'),
+    ('is_croi', 'is_croi'),
+    ('is_buttons', 'is_buttons'),
+    ('is_tailor', 'is_tailor'),
+    ('is_povar', 'is_povar'),
+)
 class User(AbstractUser):
     username = models.CharField(unique=True,max_length=255, verbose_name='Псевдоним')
     email = models.EmailField(blank=True,null=True,max_length=255, verbose_name='Почта')
@@ -30,20 +41,11 @@ class User(AbstractUser):
     whatsapp = models.CharField(max_length=255, blank=True, null=True, verbose_name='WhatsApp')
     
     filial = models.ForeignKey(Filial,null=True, blank=True, on_delete=models.SET_NULL, verbose_name='Филиал')
-
+    
     access_token = models.CharField(max_length=255, null=True, blank=True)
     refresh_token = models.CharField(max_length=255, blank=True, null=True)
+    status_staff = models.CharField(default='guest', choices=STATUS_CHOICE)
 
-
-    is_superuser = models.BooleanField(default=False, verbose_name='Супер пользователь')
-    is_active = models.BooleanField(default=False, verbose_name='Активный')
-    is_technolog = models.BooleanField(default=False, verbose_name="Технолог")
-    is_upakovka = models.BooleanField(default=False, verbose_name="Упаковка")
-    is_utug = models.BooleanField(default=False, verbose_name="Утюг")
-    is_croi = models.BooleanField(default=False, verbose_name="Крой")
-    is_buttons = models.BooleanField(default=False, verbose_name="Пуговица") 
-    is_tailor = models.BooleanField(default=False, verbose_name="Портной") # тигуучу
-    is_povar = models.BooleanField(default=False, verbose_name="Повар")
     EMAIL_FIELD = ['username']
     groups = models.ManyToManyField(
         'auth.Group', 

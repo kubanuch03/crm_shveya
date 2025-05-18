@@ -32,7 +32,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 ######################################################################
 INSTALLED_APPS = [
     "unfold",
-    'app_accounting',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -45,7 +44,9 @@ INSTALLED_APPS = [
     #app
     'app_users',
     'app_productions',
+    'app_accounting',
     'app_history',
+    'app_global',
 
 ]
 
@@ -172,3 +173,34 @@ SIMPLE_JWT = {
 # from .auto_create_start.create_pier_user import SettingsFactory
 # django.setup()
 # settings_users_pier = SettingsFactory().create_all()
+
+
+
+
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO', # Adjust level (DEBUG, INFO, WARNING, ERROR)
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO', # Or WARNING for less verbosity
+            'propagate': False,
+        },
+        # Add your app's logger if you want specific config
+        'app_productions': {
+             'handlers': ['console'],
+             'level': 'DEBUG', # More detail for your app during development
+             'propagate': False,
+         },
+    },
+}

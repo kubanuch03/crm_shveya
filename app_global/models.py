@@ -5,7 +5,7 @@ from django.db import models
 
 class PackagingSettings(models.Model):
     title = models.CharField(max_length=255, verbose_name='Наименование')
-    per_unit = models.PositiveIntegerField(max_length=255, verbose_name='За единицу')
+    per_unit = models.PositiveIntegerField(verbose_name='За единицу')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата создание')
 
     def __str__(self):
@@ -17,7 +17,7 @@ class PackagingSettings(models.Model):
 
 class UtugSettings(models.Model):
     title = models.CharField(max_length=255, verbose_name='Наименование')
-    per_unit = models.PositiveIntegerField(max_length=255, verbose_name='За единицу')
+    per_unit = models.PositiveIntegerField(verbose_name='За единицу')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата создание')
 
     def __str__(self):
@@ -28,7 +28,7 @@ class UtugSettings(models.Model):
 
 class TailorSettings(models.Model):
     title = models.CharField(max_length=255, verbose_name='Наименование')
-    per_unit = models.PositiveIntegerField(max_length=255, verbose_name='За единицу')
+    per_unit = models.PositiveIntegerField(verbose_name='За единицу')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата создание')
 
     def __str__(self):
@@ -39,7 +39,7 @@ class TailorSettings(models.Model):
 
 class CroiSettings(models.Model):
     title = models.CharField(max_length=255, verbose_name='Наименование')
-    per_unit = models.PositiveIntegerField(max_length=255, verbose_name='За единицу')
+    per_unit = models.PositiveIntegerField(verbose_name='За единицу')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата создание')
 
     def __str__(self):

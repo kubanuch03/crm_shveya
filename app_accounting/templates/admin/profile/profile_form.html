@@ -1,77 +1,128 @@
-{% comment %}
-  Шаблон для UserProfileView БЕЗ наследования от Unfold.
-  Будет выглядеть как простая HTML страница.
-{% endcomment %}
+{% extends "unfold/layouts/base.html" %} 
+{% load static %}
 {% load i18n static %}
 
-<!DOCTYPE html>
-<html lang="{{ request.LANGUAGE_CODE|default:"en" }}">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ title|default:_("Мой профиль") }}</title>
-    {# Сюда можно добавить свои собственные CSS стили, если нужно #}
-    <style>
-        body { font-family: sans-serif; padding: 20px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; }
-        input[type="text"], input[type="email"], input[type="password"] {
-            display: block;
-            width: 300px; /* Примерная ширина */
-            padding: 8px;
-            margin-bottom: 10px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-        }
-        .errors { color: red; font-size: 0.9em; list-style: none; padding: 0; margin-top: -5px; margin-bottom: 10px; }
-        button { padding: 10px 15px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
-        button:hover { background-color: #0056b3; }
-    </style>
-</head>
-<body>
 
-    <h1>{{ title|default:_("Редактирование профиля") }}</h1>
+{% block content %}
+<link rel="stylesheet" href="{% static 'profile/css/style.css' %}">
+    <h1 class="text-2xl font-semibold text-gray-900 dark:text-white mb-6">
+        {{ title }}
+    </h1>
 
-    <hr>
-    <h2>{{request.user.username}}</h2>
-    <h2>{{request.user.first_name}}</h2>
-    <form method="post" action="">
-        {% csrf_token %}
+    {% if no_salary_data_found %}
+        <div class="bg-white dark:bg-gray-800/50 shadow-sm ring-1 ring-gray-950/5 dark:ring-white/10 rounded-lg p-6">
+            <p class="text-lg text-gray-700 dark:text-gray-300">
+                {% blocktrans with username=current_profile_user.get_full_name|default:current_profile_user.username %}
+                К сожалению, данные о зарплате для пользователя <strong>{{ username }}</strong> пока отсутствуют.
+                {% endblocktrans %}
+            </p>
+        </div>
+    {% else %}  {# no_salary_data_found is False, значит usersalary существует #}
+        <div class="bg-white dark:bg-gray-800/50 shadow-sm ring-1 ring-gray-950/5 dark:ring-white/10 rounded-lg">
+            <div class="p-6">
+                {# Информация о сотруднике и периоде #}
+                <div class="mb-8 pb-6 border-b border-gray-200 dark:border-white/10">
+                    <h2 class="text-xl font-semibold text-gray-800 dark:text-white mb-4">{% trans "Общая информация" %}</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">{% trans "Сотрудник" %}</dt>
+                            <dd class="mt-1 text-lg text-gray-900 dark:text-white">{{ request.user.first_name|default:request.user.username }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">{% trans "Период зарплаты" %}</dt>
+                            <dd class="mt-1 text-lg text-gray-900 dark:text-white">{{ usersalary.salary_month|stringformat:"02d" }}/{{ usersalary.salary_year }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">{% trans "Статус/Роль" %}</dt>
+                            <dd class="mt-1 text-lg text-gray-900 dark:text-white">{{ user_role|default:_("Не указана") }}</dd>
+                        </div>
+                    </div>
+                </div>
 
-        {# Не полейные ошибки #}
-        {% if form.non_field_errors %}
-            <ul class="errors">
-                {% for error in form.non_field_errors %}
-                    <li>{{ error }}</li>
-                {% endfor %}
-            </ul>
-        {% endif %}
+                {# Показатели работы #}
+                <div>
+                    <h2 class="text-xl font-semibold text-gray-800 dark:text-white mb-4">{% trans "Показатели работы" %}</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">{% trans "Количество выполненных работ (шт)" %}</dt>
+                            <dd class="mt-1 text-2xl font-semibold text-primary-600 dark:text-primary-500">{{ total_items_processed|default:0 }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">{% trans "Заработано (сом)" %}</dt>
+                            <dd class="mt-1 text-2xl font-semibold text-green-600 dark:text-green-500">{{ usersalary.total_cash|default:0 }}</dd>
+                        </div>
+                    </div>
+                </div>
 
-        {# Итерация по полям формы #}
-        {% for field in form %}
-            <div>
-                <label for="{{ field.id_for_label }}">{{ field.label }}:</label>
-                {{ field }} {# Поле ввода #}
-
-                {% if field.errors %}
-                    <ul class="errors">
-                        {% for error in field.errors %}
-                            <li>{{ error }}</li>
-                        {% endfor %}
-                    </ul>
-                {% endif %}
-
-                {% if field.help_text %}
-                    <p style="font-size: 0.8em; color: #555;">{{ field.help_text|safe }}</p>
+                {# Детализация по WorkLog #}
+                {# Используем usersalary.work_log.all() или related_work_logs, если передали #}
+                {% if usersalary.work_log.all %} 
+                <div class="mt-8 pt-6 border-t border-gray-200 dark:border-white/10">
+                    <h2 class="text-xl font-semibold text-gray-800 dark:text-white mb-4">{% trans "Детализация выполненных работ (Work Logs)" %}</h2>
+                    <div class="overflow-x-auto rounded-lg ring-1 ring-gray-950/5 dark:ring-white/10">
+                        <table class="min-w-full divide-y divide-gray-200 dark:divide-white/10">
+                            <thead class="bg-gray-50 dark:bg-gray-700/50">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                        {% trans "Этап процесса" %}
+                                    </th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                        {% trans "Обработано (шт)" %}
+                                    </th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                        {% trans "Брак (шт)" %}
+                                    </th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                        {% trans "Время записи" %}
+                                    </th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                        {% trans "Примечания" %}
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white dark:bg-gray-800/50 divide-y divide-gray-200 dark:divide-white/10">
+                                {# Используем related_work_logs если передали, иначе usersalary.work_log.all() #}
+                                {% for log in related_work_logs|default:usersalary.work_log.all %} 
+                                    <tr>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                                            {{ log.stage.get_stage_type_display }}
+                                            {% if log.stage.batch_product %}
+                                                <span class="text-xs text-gray-500 dark:text-gray-400">
+                                                    (Партия: {{ log.stage.batch_product.batch.name|default:"-" }}, Товар: {{ log.stage.batch_product.product.name|default:"-" }})
+                                                </span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                                            {{ log.quantity_processed }}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                                            {{ log.quantity_defective }}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                                            {{ log.log_time|date:"d.m.Y H:i" }}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                                            {{ log.notes|default:"" }}
+                                        </td>
+                                    </tr>
+                                {% empty %}
+                                    <tr>
+                                        <td colspan="5" class="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-500 dark:text-gray-400">
+                                            {% trans "Нет записей о выполненной работе за этот период." %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
                 {% endif %}
             </div>
-        {% endfor %}
 
-        <br>
-        <button type="submit">{% trans "Сохранить изменения" %}</button>
-    </form>
-
-    <br>
-    <p><a href="{% url 'admin:index' %}">{% trans "Вернуться в админку" %}</a></p> {# Добавляем ссылку для возврата #}
-
-</body>
-</html>
+            {# Нижняя часть #}
+            <div class="px-6 py-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-white/10 rounded-b-lg flex justify-end">
+                {# ... кнопки ... #}
+            </div>
+        </div>
+    {% endif %}
+{% endblock %}

@@ -9,6 +9,10 @@ from logger import logger
 
 
 
+class SalaryUserAPIView(APIView):
+    def get(self, request, *args, **kwargs):
+        pass
+
 class ProductionBatchListCreateAPIView(APIView):
 
     def post(self, request, *args, **kwargs):

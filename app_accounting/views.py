@@ -4,7 +4,7 @@ from django.urls import reverse_lazy
 from django.utils.translation import gettext_lazy as _
 from django.contrib import admin
 from django.contrib.auth import get_user_model
-
+from django.views.generic import DetailView
 # from .models import Profile
 from .forms import UserProfileForm # Вам нужно будет создать эту форму
 from rest_framework.views import APIView
@@ -20,10 +20,14 @@ from django.utils import timezone
 from django.db.models import Sum, F, Value, CharField
 from django.db.models.functions import Concat
 from app_users.models import User 
-from app_productions.models import ProcessStage
 from openpyxl import Workbook
 from openpyxl.utils import get_column_letter
-from django.utils.translation import gettext_lazy as _ 
+from django.urls import reverse_lazy
+from django.utils.translation import gettext_lazy as _
+from datetime import date
+from app_accounting.models import UserSalary 
+from app_productions.models import ProcessStage, WorkLog
+from django.shortcuts import get_object_or_404, Http404 
 
 
 def dashboard_callback(request, context):
@@ -71,6 +75,82 @@ class UserProfileView(LoginRequiredMixin, UpdateView):
         context['title'] = 'Мой профиль'
         return context
 
+# --- Ваш UserProfileView ---
+class UserProfileView(LoginRequiredMixin, UpdateView):
+    model = User
+    form_class = UserProfileForm
+    template_name = 'admin/profile/profile_form.html' 
+    success_url = reverse_lazy('accounts:profile')
+
+    def get_object(self, queryset=None):
+        return self.request.user 
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update(admin.site.each_context(self.request))
+        context['title'] = 'Мой профиль'
+        return context
+
+class UserSalaryReportView(LoginRequiredMixin, DetailView):
+    model = UserSalary
+    template_name = "admin/profile/profile_form.html" # Убедитесь, что путь к шаблону правильный
+    context_object_name = "usersalary" # Это имя будет использоваться в шаблоне для доступа к объекту UserSalary
+
+    def get_object(self, queryset=None):
+        user = self.request.user
+        today = date.today()
+        try:
+            # Пытаемся получить зарплату за текущий месяц
+            return UserSalary.objects.get(
+                user=user,
+                salary_year=today.year,
+                salary_month=today.month
+            )
+        except UserSalary.DoesNotExist:
+            # Если за текущий месяц нет, попробуем найти последнюю доступную
+            return UserSalary.objects.filter(user=user).order_by('-salary_year', '-salary_month').first()
+        # Если и последней нет, .first() вернет None, и self.object (usersalary в шаблоне) будет None
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs) # Получаем базовый контекст от DetailView
+                                                    # Он уже будет содержать 'usersalary': self.object
+
+        # self.object это наш экземпляр UserSalary (или None, если не найден)
+        # В шаблоне он будет доступен как {{ usersalary }}
+        current_usersalary_object = self.object 
+
+        if current_usersalary_object:
+            context['no_salary_data_found'] = False
+            context['title'] = _("Отчет по зарплате: %(user_name)s (%(month)02d/%(year)d)") % {
+                'user_name': current_usersalary_object.user.get_full_name() or current_usersalary_object.user.username,
+                'month': current_usersalary_object.salary_month,
+                'year': current_usersalary_object.salary_year
+            }
+
+            # Получаем связанные WorkLog для ЭТОЙ конкретной UserSalary
+            # Но если вы хотите передать их под другим именем или предварительно обработать:
+            context['related_work_logs'] = current_usersalary_object.work_log.select_related('stage', 'stage__batch_product', 'stage__batch_product__batch', 'stage__batch_product__product').all()
+            # select_related для оптимизации запросов в шаблоне
+
+            # Расчет общего количества обработанных единиц (если нужно отдельно)
+            total_items_aggregation = current_usersalary_object.work_log.aggregate(
+                total_processed=Sum('quantity_processed')
+            )
+            context['total_items_processed'] = total_items_aggregation['total_processed'] or 0
+            
+            # Определение роли (ваша логика)
+            user_role = _("Не определена")
+            # ... (ваша логика определения user_role, используя current_usersalary_object.user ...)
+            context['user_role'] = user_role
+
+        else:
+            context['no_salary_data_found'] = True
+            context['title'] = _("Данные о зарплате не найдены")
+            context['current_profile_user'] = self.request.user 
+
+        return context
+    
+    
 
 def monthly_user_production_report(request):
     """
@@ -187,3 +267,5 @@ def monthly_user_production_report(request):
 #         if not serializer.is_valid():
 #             logger.error(f"Error serializers: {serializer.error}")
 #             return Response(serializer.error, status=400)
+
+
