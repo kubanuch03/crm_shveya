@@ -43,8 +43,8 @@ class UserAdmin(ModelAdmin):
             {
                 "classes": ["unfold-collapse"],
                 "fields": [
-                    "is_superuser", "is_staff", "is_active", "is_technolog", "is_upakovka", "is_utug", "is_croi",
-                    "is_buttons", "is_tailor", "is_povar","groups",
+                    "is_superuser", "is_staff", 
+                    "status_staff"
                 ],
             },
         ),

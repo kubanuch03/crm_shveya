@@ -1,0 +1,27 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block content %}
+<div id="content-main">
+    <form method="post">
+        {% csrf_token %}
+        <h1>{{ title }}</h1>
+        
+        <p>{% blocktrans count counter=queryset.count %}Вы собираетесь установить индивидуальную ставку для {{ counter }} товара.{% plural %}Вы собираетесь установить индивидуальную ставку для {{ counter }} товаров.{% endblocktrans %}</p>
+        
+        <fieldset class="module aligned">
+            {{ form.as_p }}
+        </fieldset>
+
+        {% for obj in queryset %}
+            <input type="hidden" name="{{ action_checkbox_name }}" value="{{ obj.pk }}">
+        {% endfor %}
+        <input type="hidden" name="action" value="set_individual_rate_action">
+        
+        <div>
+            <input type="submit" name="apply" value="{% trans 'Применить ставку' %}">
+            <a href="#" onclick="window.history.back(); return false;" class="button cancel-link">{% trans "Отмена" %}</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

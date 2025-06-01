@@ -1,43 +1,74 @@
+# app_accounting/models.py
 from django.db import models
-from datetime import datetime
-from django.core.exceptions import ValidationError
 from django.utils import timezone
-from app_productions.models import WorkLog
-from app_users.models import User
+from django.utils.translation import gettext_lazy as _
+from decimal import Decimal # <<< ДОБАВИТЬ ИМПОРТ
 
+# Убедись, что эти импорты корректны
+from app_productions.models import WorkLog 
+from app_users.models import User # или from django.conf import settings; User = settings.AUTH_USER_MODEL
 
+import logging
+logger = logging.getLogger(__name__)
 
-class IsGetSalary(models.Model):
+class IsGetSalary(models.Model): # Эта модель выглядит неиспользуемой, если это так, лучше удалить
     title = models.CharField(max_length=255, verbose_name='Наименование')
     cash = models.PositiveIntegerField(default=0, blank=True, null=True, verbose_name='Сом')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата создание')
 
-class UserSalary(models.Model):
-    work_log = models.ManyToManyField(
-        WorkLog,
-        blank=True,
-        verbose_name='Записи о работе'
-    )
-    user = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name='Сотрудник')
-    salary_period_date = models.DateField(
-        null=True,
-        verbose_name='Месяц и год зарплаты',
-        help_text='Любая дата в месяце, за который начисляется зарплата. Будет использован только месяц и год.'
-    )
-    salary_year = models.PositiveIntegerField(null=True, verbose_name='Год зарплаты')
-    salary_month = models.PositiveIntegerField(null=True, verbose_name='Месяц зарплаты')
-    total_cash = models.PositiveIntegerField(default=0, verbose_name='Заработано') 
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата Создания записи')
-
     def __str__(self):
-        return f"Зарплата {self.user.first_name or self.user.username} за {self.salary_month:02d}/{self.salary_year}"
+        return self.title
+
+
+class UserSalary(models.Model):
+    work_log = models.ManyToManyField(WorkLog, blank=True, verbose_name=_('Записи о работе'))
+    user = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name=_('Сотрудник'))
+    
+    salary_year = models.PositiveIntegerField(verbose_name=_('Год'))
+    salary_month = models.PositiveIntegerField(verbose_name=_('Месяц'))
+
+    period_start_datetime = models.DateTimeField(default=timezone.now, verbose_name=_("Начало текущего расчетного периода"))
+
+    total_cash = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'), verbose_name=_('Заработано за этот период'))
+    
+    is_paid = models.BooleanField(default=False, verbose_name=_("Этот период выплачен"))
+    paid_at = models.DateTimeField(null=True, blank=True, verbose_name=_("Дата выплаты этого периода"))
+    paid_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='closed_salary_periods', verbose_name=_("Кто выплатил этот период"))
+    
+    created_at = models.DateTimeField(auto_now_add=True) # Когда была создана эта запись UserSalary
 
     class Meta:
-        verbose_name = 'Заработная плата Сотрудников'
-        verbose_name_plural = 'Заработная плата Сотрудников'
-        ordering = ['-salary_year', '-salary_month', 'user__username']
+        verbose_name = 'Расчетный период зарплаты сотрудника'
+        verbose_name_plural = 'Расчетные периоды зарплаты сотрудников'
+        # Сортировка: сначала невыплаченные, потом по дате начала периода
+        ordering = ['is_paid', '-salary_year', '-salary_month', '-period_start_datetime']
+        # Уникальность теперь может быть по (user, period_start_datetime), если нужно
+        # Но для гибкости можно и без нее, если логика создания новой записи будет строгой.
 
-    
+    def __str__(self):
+        status = "Выплачено" if self.is_paid else "Активен"
+        return f"ЗП {self.user.username} за период с {self.period_start_datetime.strftime('%d.%m.%Y %H:%M')} ({status})"
 
-   
-    
+    # Метод mark_as_paid остается похожим, но он закрывает ТЕКУЩИЙ ОБЪЕКТ UserSalary
+    def mark_as_paid_and_prepare_next(self, user_who_marked):
+        if not self.is_paid:
+            self.is_paid = True
+            self.paid_at = timezone.now()
+            self.paid_by = user_who_marked
+            self.save(update_fields=['is_paid', 'paid_at', 'paid_by'])
+            logger.info(f"UserSalary ID {self.pk} (период с {self.period_start_datetime}) для {self.user.username} помечен как выплаченный.")
+            
+            # !!! ЛОГИКА СОЗДАНИЯ НОВОГО ПЕРИОДА СРАЗУ ПОСЛЕ ВЫПЛАТЫ !!!
+            # Создаем новую, "чистую" UserSalary для этого же пользователя и этого же месяца,
+            # но с новой period_start_datetime (текущее время)
+            new_period_salary = UserSalary.objects.create(
+                user=self.user,
+                salary_year=self.salary_year,
+                salary_month=self.salary_month,
+                period_start_datetime=timezone.now(), # Новый период начинается сейчас
+                total_cash=Decimal('0.00'),
+                is_paid=False
+            )
+            logger.info(f"Создан новый активный UserSalary ID {new_period_salary.pk} для {self.user.username} за {self.salary_month}/{self.salary_year} (период с {new_period_salary.period_start_datetime}).")
+            return True, new_period_salary # Возвращаем признак успеха и новый объект
+        return False, None

@@ -1,3 +1,4 @@
+#app_accounting views.py
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import UpdateView
 from django.urls import reverse_lazy
@@ -19,6 +20,9 @@ from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 from django.db.models import Sum, F, Value, CharField
 from django.db.models.functions import Concat
+from django.shortcuts import redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required # или permission_required
+from django.contrib import messages
 from app_users.models import User 
 from openpyxl import Workbook
 from openpyxl.utils import get_column_letter
@@ -90,67 +94,85 @@ class UserProfileView(LoginRequiredMixin, UpdateView):
         context.update(admin.site.each_context(self.request))
         context['title'] = 'Мой профиль'
         return context
-
+    
 class UserSalaryReportView(LoginRequiredMixin, DetailView):
     model = UserSalary
-    template_name = "admin/profile/profile_form.html" # Убедитесь, что путь к шаблону правильный
-    context_object_name = "usersalary" # Это имя будет использоваться в шаблоне для доступа к объекту UserSalary
+    template_name = "admin/profile/profile_form.html"
+    context_object_name = "usersalary"
 
     def get_object(self, queryset=None):
         user = self.request.user
-        today = date.today()
-        try:
-            # Пытаемся получить зарплату за текущий месяц
-            return UserSalary.objects.get(
-                user=user,
-                salary_year=today.year,
-                salary_month=today.month
-            )
-        except UserSalary.DoesNotExist:
-            # Если за текущий месяц нет, попробуем найти последнюю доступную
-            return UserSalary.objects.filter(user=user).order_by('-salary_year', '-salary_month').first()
-        # Если и последней нет, .first() вернет None, и self.object (usersalary в шаблоне) будет None
+        # Ищем самый последний по period_start_datetime НЕВЫПЛАЧЕННЫЙ UserSalary для этого пользователя
+        # Можно добавить фильтр по текущему месяцу, если это нужно
+        # current_year = timezone.now().year
+        # current_month = timezone.now().month
+        # .filter(salary_year=current_year, salary_month=current_month)
 
+        latest_active_period = UserSalary.objects.filter(
+            user=user,
+            is_paid=False 
+        ).order_by('-period_start_datetime').first() # Самый "свежий" активный период
+
+        return latest_active_period # Может быть None, если нет активных
+    
     def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs) # Получаем базовый контекст от DetailView
-                                                    # Он уже будет содержать 'usersalary': self.object
+        # ... (логика get_context_data остается похожей, но теперь usersalary - это "кусок" расчета)
+        # В "Истории расчетных периодов" теперь будут все эти "куски"
+        context = super().get_context_data(**kwargs)
+        current_period_object = self.object
 
-        # self.object это наш экземпляр UserSalary (или None, если не найден)
-        # В шаблоне он будет доступен как {{ usersalary }}
-        current_usersalary_object = self.object 
+        context['title'] = _("Текущий расчет по зарплате")
+        context['current_profile_user'] = self.request.user
 
-        if current_usersalary_object:
+        if current_period_object:
             context['no_salary_data_found'] = False
-            context['title'] = _("Отчет по зарплате: %(user_name)s (%(month)02d/%(year)d)") % {
-                'user_name': current_usersalary_object.user.get_full_name() or current_usersalary_object.user.username,
-                'month': current_usersalary_object.salary_month,
-                'year': current_usersalary_object.salary_year
-            }
-
-            # Получаем связанные WorkLog для ЭТОЙ конкретной UserSalary
-            # Но если вы хотите передать их под другим именем или предварительно обработать:
-            context['related_work_logs'] = current_usersalary_object.work_log.select_related('stage', 'stage__batch_product', 'stage__batch_product__batch', 'stage__batch_product__product').all()
-            # select_related для оптимизации запросов в шаблоне
-
-            # Расчет общего количества обработанных единиц (если нужно отдельно)
-            total_items_aggregation = current_usersalary_object.work_log.aggregate(
-                total_processed=Sum('quantity_processed')
-            )
-            context['total_items_processed'] = total_items_aggregation['total_processed'] or 0
+            context['user_role'] = _("Сотрудник") # Адаптируй
             
-            # Определение роли (ваша логика)
-            user_role = _("Не определена")
-            # ... (ваша логика определения user_role, используя current_usersalary_object.user ...)
-            context['user_role'] = user_role
+            # Суммируем WorkLog'и, привязанные ИМЕННО К ЭТОМУ UserSalary (периоду)
+            # Это будет использовать M2M связь user_salary.work_log.all()
+            total_items_aggregation = current_period_object.work_log.aggregate(
+                total_processed=Sum('quantity_processed', default=0)
+            )
+            context['total_items_processed'] = total_items_aggregation['total_processed']
+            
+            context['related_work_logs'] = current_period_object.work_log.select_related(
+                'stage__batch_product__batch', 
+                'stage__batch_product__product'
+            ).all()
 
+            if not current_period_object.is_paid: # Кнопка "Выплатить этот период"
+                context['mark_paid_url'] = reverse_lazy('accounts:mark_salary_paid', kwargs={'pk': current_period_object.pk})
         else:
             context['no_salary_data_found'] = True
-            context['title'] = _("Данные о зарплате не найдены")
-            context['current_profile_user'] = self.request.user 
-
+        
+        # История ВСЕХ периодов для пользователя
+        context['user_salary_history'] = UserSalary.objects.filter(
+            user=self.request.user
+        ).order_by('-period_start_datetime') # Сначала самые свежие периоды
+        
         return context
+
+@login_required
+def mark_salary_as_paid(request, pk): # pk - это ID текущего UserSalary, который закрываем
+    user_salary_to_close = get_object_or_404(UserSalary, pk=pk)
+
+    # ... (проверка прав) ...
+    can_mark_paid = request.user.is_superuser or request.user == user_salary_to_close.user
+    if not can_mark_paid:
+        messages.error(request, _("У вас нет прав для выполнения этого действия."))
+        return redirect(reverse_lazy('accounts:profile'))
+
+    if request.method == 'POST':
+        # Используем новый метод модели
+        success, new_salary_period = user_salary_to_close.mark_as_paid_and_prepare_next(request.user)
+        if success:
+            messages.success(request, _("Расчетный период успешно закрыт. Создан новый активный период."))
+        else:
+            messages.info(request, _("Этот расчетный период уже был закрыт ранее."))
+    else:
+        messages.warning(request, _("Некорректный метод запроса."))
     
-    
+    return redirect(reverse_lazy('accounts:profile'))
 
 def monthly_user_production_report(request):
     """
