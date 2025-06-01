@@ -1,0 +1,7 @@
+media/
+postgr
+*/__pycache__/*
+*/__pycache__/
+static
+staticfiles
+venv

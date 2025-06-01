@@ -38,18 +38,24 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-
+    #lib
+    'rest_framework',
+    'rest_framework_simplejwt',
     #app
     'app_users',
-    # 'app_accounting',
-    # 'app_analytics',
-    # 'app_productions',
+    'app_productions',
+    'app_accounting',
+    'app_history',
+    'app_global',
+
 ]
+
 
 ######################################################################
 # Middleware
 ######################################################################
 MIDDLEWARE = [
+    "simple_history.middleware.HistoryRequestMiddleware",
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -65,7 +71,7 @@ MIDDLEWARE = [
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        "DIRS": [os.path.join(BASE_DIR, "templates")],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -85,10 +91,10 @@ TEMPLATES = [
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "USER": config("DATABASE_USER", "postgres"),
-        "PASSWORD": config("DATABASE_PASSWORD", "postgres"),
-        "NAME": config("DATABASE_NAME", "chveya"),
-        "HOST": config("DATABASE_HOST", "localhost"),
+        "USER": config("POSTGRES_USER", "postgres"),
+        "PASSWORD": config("POSTGRES_PASSWORD", "postgres"),
+        "NAME": config("POSTGRES_DB", "chveya"),
+        "HOST": config("POSTGRES_HOST", "db"),
         "PORT": "5432",
         "TEST": {
             "NAME": "test",
@@ -101,7 +107,11 @@ DATABASES = {
 
 AUTH_USER_MODEL = "app_users.User"
 
-
+CSRF_TRUSTED_ORIGINS = [
+    "http://127.0.0.1",
+    "http://localhost",
+    "http://localhost:89899",
+]
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
@@ -121,7 +131,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 ######################################################################
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'ru'
 
 TIME_ZONE = 'Asia/Bishkek'
 
@@ -134,7 +144,10 @@ USE_TZ = True
 # Staticfiles
 ######################################################################
 STATIC_URL = "/static/"
-STATIC_ROOT = os.path.join(BASE_DIR, 'static')  
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')  # Collect static files into this directory
+STATICFILES_DIRS = [
+    BASE_DIR / "static",  # Path to additional static files (excluding static_root)
+]
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
@@ -143,7 +156,8 @@ MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 ######################################################################
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
-
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 10,
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ],
@@ -154,3 +168,39 @@ SIMPLE_JWT = {
     "REFRESH_TOKEN_LIFETIME": timedelta(days=60),
 }
 
+
+# import django
+# from .auto_create_start.create_pier_user import SettingsFactory
+# django.setup()
+# settings_users_pier = SettingsFactory().create_all()
+
+
+
+
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO', # Adjust level (DEBUG, INFO, WARNING, ERROR)
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO', # Or WARNING for less verbosity
+            'propagate': False,
+        },
+        # Add your app's logger if you want specific config
+        'app_productions': {
+             'handlers': ['console'],
+             'level': 'DEBUG', # More detail for your app during development
+             'propagate': False,
+         },
+    },
+}

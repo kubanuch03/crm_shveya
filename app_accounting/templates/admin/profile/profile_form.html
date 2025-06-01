@@ -1,0 +1,180 @@
+{% extends "admin/profile/base_custom.html" %}
+{% load i18n static %}
+
+{% block title %}
+    {{ title }} | CRM система
+{% endblock %}
+
+{% block page_title_content %}{{ title }}{% endblock %}
+
+{% block content %}
+    <link rel="stylesheet" href="{% static 'profile/css/style.css' %}">
+    {% if no_salary_data_found %}
+        <div class="card alert alert-warning">
+            <p>
+                {% blocktrans with username=current_profile_user.get_full_name|default:current_profile_user.username %}
+                Активный (незакрытый) расчетный период для пользователя <strong>{{ username }}</strong> не найден.
+                {% endblocktrans %}
+            </p>
+            <p>{% trans "Новый расчетный период будет создан автоматически при первой записи о выполненной работе (WorkLog) в новом месяце." %}</p>
+        </div>
+    {% else %} {# Если есть usersalary (активный период) #}
+        <div class="content-wrapper">
+            
+            <section class="card">
+                <h2 class="card-header">{% trans "Общая информация" %}</h2>
+                <div class="card-body definition-list-grid">
+                    <div>
+                        <dt>{% trans "Сотрудник" %}</dt>
+                        <dd>{{ usersalary.user.get_full_name|default:usersalary.user.username }}</dd>
+                    </div>
+                    <div>
+                        <dt>{% trans "Период зарплаты" %}</dt>
+                        <dd>{{ usersalary.salary_month|stringformat:"02d" }}/{{ usersalary.salary_year }}</dd>
+                    </div>
+                    <div>
+                        <dt>{% trans "Статус/Роль" %}</dt>
+                        <dd>{{ user_role|default:_("Не указана") }}</dd>
+                    </div>
+                </div>
+            </section>
+
+            <section class="card">
+                <h2 class="card-header">{% trans "Показатели работы" %}</h2>
+                <div class="card-body stats-grid">
+                    <div class="stat-item">
+                        <dt>{% trans "Количество выполненных работ (шт)" %}</dt>
+                        <dd class="stat-value items-value">{{ total_items_processed|default:0 }}</dd>
+                    </div>
+                    <div class="stat-item">
+                        <dt>{% trans "Заработано (сом)" %}</dt>
+                        {# Используй floatformat для корректного отображения DecimalField #}
+                        <dd class="stat-value cash-value">{{ usersalary.total_cash|floatformat:2|default:"0.00" }}</dd>
+                    </div>
+                </div>
+            </section>
+
+            {# --- ВСТАВЛЯЕМ КНОПКУ ЗДЕСЬ --- #}
+            {% if usersalary and not usersalary.is_paid and mark_paid_url %}
+                <section class="card" style="margin-top: 1.5rem; margin-bottom: 1.5rem; padding: 1rem; text-align: center;">
+                    <form method="post" action="{{ mark_paid_url }}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-warning"> {# Можешь использовать другие классы для кнопки, например, btn-primary или твои кастомные #}
+                            {% blocktrans with month_year=usersalary.salary_month|stringformat:"02d"|add:"/"|add:usersalary.salary_year %}
+                            Закрыть расчетный период {{ month_year }} (Отметить как выплаченный)
+                            {% endblocktrans %}
+                        </button>
+                    </form>
+                    <p style="font-size: 0.9em; color: #666; margin-top: 0.5em;">
+                        {% trans "После нажатия, этот период будет считаться закрытым, и здесь будет отображаться следующий активный период (если он есть)." %}
+                    </p>
+                </section>
+            {% elif usersalary and usersalary.is_paid %} 
+                {# Это условие сработает, если get_object вернет уже закрытый период, #}
+                {# но по текущей логике get_object ищет только is_paid=False #}
+                {# Так что этот блок скорее для полноты, если логика get_object изменится #}
+                <div class="alert alert-info" style="margin-top: 1.5rem; margin-bottom: 1.5rem;">
+                     {% blocktrans with month_year=usersalary.salary_month|stringformat:"02d"|add:"/"|add:usersalary.salary_year %}
+                     Расчетный период {{ month_year }} уже закрыт.
+                     {% endblocktrans %}
+                </div>
+            {% endif %}
+            {# --- КОНЕЦ БЛОКА С КНОПКОЙ --- #}
+
+
+            {% if usersalary.work_log.all %}
+            <section class="card">
+                <h2 class="card-header">{% trans "Детализация выполненных работ (Work Logs)" %}</h2>
+                <div class="table-responsive card-body">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>{% trans "Этап процесса" %}</th>
+                                <th>{% trans "Обработано (шт)" %}</th>
+                                <th>{% trans "Брак (шт)" %}</th>
+                                <th>{% trans "Время записи" %}</th>
+                                <th>{% trans "Примечания" %}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {# Убедись, что related_work_logs передается из view. #}
+                            {# Если нет, используй usersalary.work_log.all, но с select_related в view лучше #}
+                            {% for log in related_work_logs %}
+                                <tr>
+                                    <td>
+                                        {{ log.stage.get_stage_type_display }}
+                                        {% if log.stage.batch_product %}
+                                            <div class="sub-info">
+                                                {% trans "Партия" %}: {{ log.stage.batch_product.batch.batch_number|default:"-" }} 
+                                                ({{ log.stage.batch_product.batch.title|default:"" }})<br>
+                                                {% trans "Товар" %}: {{ log.stage.batch_product.product.title|default:"-" }}
+                                            </div>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ log.quantity_processed }}</td>
+                                    <td>{{ log.quantity_defective }}</td>
+                                    <td>{{ log.log_time|date:"d.m.Y H:i" }}</td>
+                                    <td class="notes-cell">{{ log.notes|default:""|linebreaksbr }}</td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="5" class="empty-row">
+                                        {% trans "Нет записей о выполненной работе за этот период." %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+            {% endif %}
+        </div>
+    {% endif %}
+    {% if user_salary_history %} {# user_salary_history передается из get_context_data #}
+    <div class="content-wrapper" style="margin-top: 2rem;">
+        <section class="card">
+            <h2 class="card-header">{% trans "История расчетных периодов" %}</h2>
+            <div class="table-responsive card-body">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>{% trans "Период" %}</th>
+                            <th>{% trans "Заработано (сом)" %}</th>
+                            <th>{% trans "Статус" %}</th> 
+                            <th>{% trans "Дата выплаты" %}</th>
+                            <th>{% trans "Кем выплачено" %}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for salary_record in user_salary_history %}
+                        <tr>
+                            <td>{{ salary_record.salary_month|stringformat:"02d" }}/{{ salary_record.salary_year }}</td>
+                            <td>{{ salary_record.total_cash|floatformat:2 }}</td>
+                            <td>
+                                {% if salary_record.is_paid %}
+                                    <span class="status-paid">{% trans "Выплачено" %}</span>
+                                {% else %}
+                                    <span class="status-unpaid">{% trans "Не выплачено / Активен" %}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ salary_record.paid_at|date:"d.m.Y H:i"|default:"-" }}</td>
+                            <td>
+                                {% if salary_record.paid_by %} {# <--- ДОБАВЛЯЕМ ПРОВЕРКУ ЗДЕСЬ #}
+                                    {{ salary_record.paid_by.get_full_name|default:salary_record.paid_by.username }}
+                                {% else %}
+                                    - {# Или другое значение по умолчанию, если paid_by это None #}
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="5" class="empty-row">{% trans "История расчетных периодов пуста." %}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+{% endif %}
+{% endblock %}

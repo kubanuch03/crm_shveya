@@ -6,9 +6,13 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# C extensions
-*.so
 
+
+*/migrations/*.py
+!*/migrations/__init__.py
+
+# C extensions
+staticfiles
 # Distribution / packaging
 .Python
 build/

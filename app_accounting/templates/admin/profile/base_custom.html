@@ -1,0 +1,54 @@
+{% load static i18n %}
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE|default:"ru" }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}CRM Система{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'profile/css/style.css' %}">
+    {% block extrahead %}{% endblock %}
+</head>
+<body>
+    <div class="page-container">
+        <header class="main-header">
+            <div class="header-content">
+                <a href="/" class="logo">CRM Лого</a>
+                <nav class="main-nav">
+                    {% if request.user.is_authenticated %}
+                        <span>Привет, {{ request.user.username }}!</span>
+                        <a href="{% url 'admin:logout' %}">Выйти</a>
+                    {% else %}
+                        <a href="{% url 'admin:login' %}">Войти</a>
+                    {% endif %}
+                </nav>
+            </div>
+        </header>
+
+        <main class="main-content">
+            {% block breadcrumbs %}
+            <nav class="breadcrumbs" aria-label="breadcrumb">
+                <ol>
+                    <li><a href="{% url 'admin:index' %}">Главная</a></li>
+                    {% if title %}
+                        <li><span aria-current="page">{{ title }}</span></li>
+                    {% endif %}
+                </ol>
+            </nav>
+            {% endblock %}
+            
+            {% block content_title %}
+            <h1 class="page-title">{% block page_title_content %}{{ title }}{% endblock %}</h1>
+            {% endblock %}
+
+            {% block content %}
+                {# Сюда будет вставлено содержимое дочерних шаблонов #}
+            {% endblock %}
+        </main>
+
+        <footer class="main-footer">
+            <p>© {% now "Y" %} CRM Система. Все права защищены.</p>
+        </footer>
+    </div>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
