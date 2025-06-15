@@ -3,7 +3,7 @@ from django.contrib import admin, messages
 from django.http import HttpResponseRedirect
 from django.shortcuts import render
 
-from django.db.models import Sum, Q # Import Q for complex lookups
+from django.db.models import Sum, Q 
 from django.urls import reverse
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
@@ -74,41 +74,38 @@ class CategoryAdmin(ModelAdmin):
 
 class ProductOperationRateInline(TabularInline): # или StackedInline
     model = ProductOperationRate
-    extra = 1 # Сколько пустых форм показывать для добавления
+    extra = 1 
     fields = ('operation_type', 'rate')
 
 @admin.register(Product)
 class ProductAdmin(ModelAdmin): # или admin.ModelAdmin
     list_display = ['id', 'title', 'created_at']
+    list_display_links = ['id', 'title','created_at']
     search_fields = ("title", "id")
     ordering = ("title",)
-    readonly_fields = ["created_at"]
+    readonly_fields = ["created_at",]
     autocomplete_fields = ['color', 'size', 'category', 'product_model']
-    # filter_horizontal = ('color', 'size', 'category', 'product_model',)
-
+ 
     fieldsets = (
         (_("Основная информация"), {"fields": ("title", "created_at")}),
         (
             _("Характеристики"),
-            {"fields": ("color", "size", "category", "product_model")}
+            {"fields": ("quentity", "color", "size", "category", "product_model")}
         )
     )
-    inlines = [ProductOperationRateInline] # Добавляем инлайн сюда
+    inlines = [ProductOperationRateInline] 
     actions = ['set_individual_rate_action']
     @admin.action(description='Установить индивидуальную ставку для выбранных товаров')
     def set_individual_rate_action(self, request, queryset):
-        # Если пользователь нажал "Выполнить" на промежуточной странице
         if 'apply' in request.POST:
             form = SetIndividualRateForm(request.POST)
             if form.is_valid():
                 operation_type = form.cleaned_data['operation_type']
                 rate_value = form.cleaned_data['rate']
-                # update_existing = form.cleaned_data.get('update_existing', False) # Если добавил чекбокс
 
                 updated_count = 0
                 created_count = 0
                 for product in queryset:
-                    # Логика создания или обновления ProductOperationRate
                     obj, created = ProductOperationRate.objects.update_or_create(
                         product=product,
                         operation_type=operation_type,
@@ -128,7 +125,6 @@ class ProductAdmin(ModelAdmin): # или admin.ModelAdmin
                 
                 return HttpResponseRedirect(request.get_full_path()) # Обновить страницу
 
-        # Если это первый шаг (выбор товаров и действия)
         else:
             form = SetIndividualRateForm()
         
@@ -137,10 +133,9 @@ class ProductAdmin(ModelAdmin): # или admin.ModelAdmin
             'title': 'Установка индивидуальной ставки',
             'queryset': queryset,
             'form': form,
-            'opts': self.model._meta, # Для корректного отображения хлебных крошек и т.д.
+            'opts': self.model._meta, 
             'action_checkbox_name': admin.helpers.ACTION_CHECKBOX_NAME, # Для формы
         }
-        # Используем кастомный шаблон для промежуточной страницы
         return render(request, 'admin/actions/set_individual_rate_intermediate.html', context)
 
 @admin.register(ProductOperationRate)
@@ -177,12 +172,12 @@ class ProductionBatchAdmin(ModelAdmin):
 
 @admin.register(BatchProduct)
 class BatchProductAdmin(ModelAdmin):
-    list_display = ['batch', 'product', 'quantity_finish']
-    list_display_links = ['batch', 'product']
+    list_display = ['batch', 'quantity_finish']
+    list_display_links = ['batch',]
     search_fields = ('batch__batch_number', 'batch__title', 'product__title')
     list_filter = ('batch__is_completed', 'batch') # Filter by batch status and batch itself
     autocomplete_fields = ['batch', 'product'] # Essential for FKs
-    list_select_related = ['batch', 'product'] # Optimize queries
+    list_select_related = ['batch',] # Optimize queries
     fieldsets = (
         (
             _("Товар в Партии"),
@@ -200,13 +195,13 @@ class BatchProductAdmin(ModelAdmin):
 @admin.register(ProcessStage)
 class ProcessStageAdmin(ModelAdmin):
     list_display = [
-        'batch_product', 'stage_type', 'status', 'assigned_user',
+        'stage_type', 'status', 'assigned_user',
         'total_completed_display', # Use display methods for calculated totals
         'total_defective_display',
         'start_date', 'end_date',  #'confirmed_by', 'confirmed_at',
         'close_session'
     ]
-    list_display_links = ['batch_product', 'stage_type'] # Keep concise
+    list_display_links = ['stage_type'] 
     list_filter = ('stage_type', 'status', 'assigned_user', 'batch_product__batch', 'close_session')
     search_fields = [
         'id', 'batch_product__batch__batch_number', 'batch_product__product__title',
@@ -214,12 +209,12 @@ class ProcessStageAdmin(ModelAdmin):
     ]
     readonly_fields = [
         "created_at", "updated_at",
-        'total_completed_display', 'total_defective_display', # Calculated fields are read-only
-        #'confirmed_by', 'confirmed_at', # These might be set programmatically or by specific roles
+        'total_completed_display', 'total_defective_display',
+        "assigned_user", 'stage_type'
     ]
-    autocomplete_fields = ['assigned_user', 'batch_product', 'confirmed_by']
-    list_select_related = [ # Optimize list view queries
-        'batch_product__batch', 'batch_product__product', 'assigned_user',
+    autocomplete_fields = ['batch_product', 'confirmed_by']
+    list_select_related = [ 
+         'assigned_user',
          'confirmed_by'
         ]
     date_hierarchy = 'created_at'
@@ -249,15 +244,24 @@ class ProcessStageAdmin(ModelAdmin):
     )
 
     actions = ['update_totals_from_logs_action'] # Add the admin action
+    
+    
+    
+     
 
-    # --- Display Methods ---
-    # @admin.display(description=_('Товар в партии'), ordering='batch_product__product__title')
-    # def batch_product_link(self, obj):
-    #     if obj.batch_product:
-    #         link = reverse('admin:%s_%s_change' % (obj.batch_product._meta.app_label, obj.batch_product._meta.model_name), args=[obj.batch_product.pk])
-    #         return format_html('<a href="{}">{}</a>', link, obj.batch_product)
-    #     return "-"
-
+    def save_model(self, request, obj, form, change):
+        """
+        Принудительно устанавливает 'assigned_user' и 'stage_type'
+        при создании нового объекта.
+        """
+        if not change:
+            obj.assigned_user = request.user
+            
+            if request.user.status_staff == 'is_upakovka':
+                obj.stage_type = 'PACKING'
+            elif request.user.status_staff == 'is_tailor':
+                obj.stage_type = 'SEWING'
+        super().save_model(request, obj, form, change)
 
     @admin.display(description=_('Выполнено Итого'), ordering='quantity_completed')
     def total_completed_display(self, obj):
@@ -266,7 +270,6 @@ class ProcessStageAdmin(ModelAdmin):
 
     @admin.display(description=_('Брак Итого'), ordering='quantity_defective')
     def total_defective_display(self, obj):
-        # Returns the stored value
         return obj.quantity_deffect
 
 
@@ -276,15 +279,10 @@ class ProcessStageAdmin(ModelAdmin):
         Переопределяем метод, чтобы ограничить видимость записей
         для не-суперпользователей.
         """
-        # Получаем базовый queryset
         qs = super().get_queryset(request)
-
-        # Если пользователь - суперпользователь, он видит все записи
         if request.user.is_superuser:
             return qs
 
-        # Иначе, показываем только те записи, где assigned_user - это текущий пользователь
-        # Убедитесь, что поле называется именно `assigned_user` в вашей модели ProcessStage
         return qs.filter(assigned_user=request.user)
         
     # --- Admin Action ---
@@ -312,39 +310,31 @@ class ProcessStageAdmin(ModelAdmin):
         else:
              self.message_user(request, _(f'Итоги для {processed_count} этапов не изменились или уже были актуальны.'), level='warning')
 @admin.register(WorkLog)
-class WorkLogAdmin(ModelAdmin): # или admin.ModelAdmin
+class WorkLogAdmin(ModelAdmin): 
     list_display = [
         'id',  
-        'stage_link', # <<< Используем кастомный метод для ссылки на этап
-        'user_display', # <<< Используем кастомный метод для пользователя
+        'stage',
+        'user_display',
         'quantity_processed', 
         'quantity_defective',
-        'log_time_display', # <<< Используем кастомный метод для времени
-        'created_at_display' # <<< Используем кастомный метод для времени создания
+        'log_time_display',
+        'created_at_display' 
     ]
-    list_display_links = ['id', 'stage_link'] # Ссылки на редактирование
+    list_display_links = ['id', 'stage'] 
     search_fields = (
         'id', 
         'user__username', 
         'user__first_name', 
         'user__last_name', 
         'stage__id',  
-        'stage__batch_product__product__title', # Поиск по названию товара
-        'stage__batch_product__batch__batch_number', # Поиск по номеру партии
+        'stage__batch_product__product__title', 
+        'stage__batch_product__batch__batch_number',
     )
-    list_filter = ('user', 'stage__stage_type', 'log_time', 'created_at') # Добавь нужные фильтры
+    list_filter = ('user', 'stage__stage_type', 'log_time', 'created_at', ) # Добавь нужные фильтры
     date_hierarchy = 'log_time' # Удобная навигация по дате
     ordering = ['-log_time', '-id'] # Сначала новые
-    list_select_related = ('stage__batch_product__product', 'stage__batch_product__batch', 'user') # Оптимизация
-
-    # Для более красивого отображения связанных объектов
-    @admin.display(description=_('Этап процесса'), ordering='stage__id')
-    def stage_link(self, obj):
-        if obj.stage:
-            # Ссылка на сам ProcessStage
-            stage_url = reverse('admin:app_productions_processstage_change', args=[obj.stage.pk])
-            return format_html('<a href="{}">{}</a>', stage_url, str(obj.stage))
-        return "-"
+    list_select_related = ['user', 'stage', ] # Оптимизация
+ 
 
     @admin.display(description=_('Сотрудник'), ordering='user__username')
     def user_display(self, obj):

@@ -96,34 +96,7 @@
                                 <th>{% trans "Примечания" %}</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            {# Убедись, что related_work_logs передается из view. #}
-                            {# Если нет, используй usersalary.work_log.all, но с select_related в view лучше #}
-                            {% for log in related_work_logs %}
-                                <tr>
-                                    <td>
-                                        {{ log.stage.get_stage_type_display }}
-                                        {% if log.stage.batch_product %}
-                                            <div class="sub-info">
-                                                {% trans "Партия" %}: {{ log.stage.batch_product.batch.batch_number|default:"-" }} 
-                                                ({{ log.stage.batch_product.batch.title|default:"" }})<br>
-                                                {% trans "Товар" %}: {{ log.stage.batch_product.product.title|default:"-" }}
-                                            </div>
-                                        {% endif %}
-                                    </td>
-                                    <td>{{ log.quantity_processed }}</td>
-                                    <td>{{ log.quantity_defective }}</td>
-                                    <td>{{ log.log_time|date:"d.m.Y H:i" }}</td>
-                                    <td class="notes-cell">{{ log.notes|default:""|linebreaksbr }}</td>
-                                </tr>
-                            {% empty %}
-                                <tr>
-                                    <td colspan="5" class="empty-row">
-                                        {% trans "Нет записей о выполненной работе за этот период." %}
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
+                        
                     </table>
                 </div>
             </section>

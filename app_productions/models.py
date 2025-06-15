@@ -55,9 +55,7 @@ class Product(models.Model):
     category = models.ManyToManyField('Category', blank=True, verbose_name=_('Категория'))
     product_model = models.ManyToManyField('Product_Model', blank=True, verbose_name=_('Модель'))
     created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('Дата создание'))
-
-    # Если ты выбрал JSONField, то это поле должно быть здесь:
-    # individual_rates = JSONField(blank=True, null=True, verbose_name=_("Индивидуальные ставки (JSON)"))
+ 
 
     def __str__(self):
         return f"{self.title}" if self.title else f"Product {self.id}"
@@ -74,15 +72,7 @@ class Product(models.Model):
             logger.error(f"Ошибка при получении индивидуальной ставки для {self.title} ({operation_type}): {e}")
             return None
         
-        # Если ты выбрал JSONField (Решение 2), то метод должен быть таким:
-        # if self.individual_rates and operation_type in self.individual_rates:
-        #     try:
-        #         rate_str = self.individual_rates[operation_type]
-        #         return Decimal(str(rate_str))
-        #     except (TypeError, ValueError) as e:
-        #         logger.error(f"Ошибка конвертации JSON ставки для {self.title} ({operation_type}): {rate_str}, {e}")
-        #         return None
-        # return None
+        
 
     class Meta:
         verbose_name = _("Товар")
@@ -120,7 +110,6 @@ class ProductOperationRate(models.Model):
 
 
 class ProductionBatch(models.Model):
-    # ... (без изменений, но метод display_total_batch_earnings должен быть здесь, если нужен) ...
     batch_number = models.CharField(max_length=100, unique=True, blank=True, null=True, verbose_name=_('Номер партии'))
     title = models.CharField(max_length=100, blank=True, null=True, verbose_name=_('Наименование'))
     planned_completion_date = models.DateField(null=True, blank=True, verbose_name=_('Плановая дата завершения'))
@@ -164,13 +153,17 @@ class ProductionBatch(models.Model):
         verbose_name = _("Производственная партия"); verbose_name_plural = _("Производственные партии"); ordering = ['-created_at']
 
 
+
 class BatchProduct(models.Model):
-    # ... (без изменений) ...
     batch = models.ForeignKey(ProductionBatch, related_name='products_in_batch', on_delete=models.CASCADE, verbose_name=_('Партия'))
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, verbose_name=_('Товар'))
+    product = models.ManyToManyField(Product, verbose_name=_('Товар'))
     quantity_finish = models.PositiveIntegerField(default=0, verbose_name=_('Количество Готово (итоговое)'))
-    def __str__(self): return f"{(self.product.title if self.product else 'N/A')} (Партия: {(self.batch.batch_number if self.batch else 'N/A')})"
-    class Meta: unique_together = ('batch', 'product'); verbose_name = _("Товар в партии"); verbose_name_plural = _("Товары в партии"); ordering = ['batch', 'product']
+    def __str__(self): return f"(Партия: {(self.batch.batch_number if self.batch else 'N/A')})"
+    class Meta: 
+        unique_together = ('batch',) 
+        verbose_name = _("Товар в партии")
+        verbose_name_plural = _("Товары в партии")
+        ordering = ['batch',]
 
 
 class ProcessStage(models.Model):
@@ -199,7 +192,6 @@ class ProcessStage(models.Model):
 
 
 class WorkLog(models.Model):
-    # ... (без изменений) ...
     stage = models.ForeignKey(ProcessStage, on_delete=models.CASCADE, related_name='work_logs', verbose_name=_('Этап процесса'))
     user = models.ForeignKey(User, on_delete=models.PROTECT, related_name='work_logs', verbose_name=_('Сотрудник'))
     quantity_processed = models.PositiveIntegerField(default=0, verbose_name=_('Обработано штук (за эту запись)'))

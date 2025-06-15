@@ -25,6 +25,7 @@ class UserAdmin(ModelAdmin):
     search_fields = ('username', 'email')
     ordering = ('username',)
     filter_horizontal = ('groups',)
+
     add_fieldsets = (
         ('Authentication', {
             'fields': ('username', 'email', 'first_name', 'last_name', 'password1', 'password2', 'is_active', 'is_staff'),

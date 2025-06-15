@@ -2,16 +2,15 @@
 from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from decimal import Decimal # <<< ДОБАВИТЬ ИМПОРТ
+from decimal import Decimal 
 
-# Убедись, что эти импорты корректны
 from app_productions.models import WorkLog 
-from app_users.models import User # или from django.conf import settings; User = settings.AUTH_USER_MODEL
+from app_users.models import User 
 
 import logging
 logger = logging.getLogger(__name__)
 
-class IsGetSalary(models.Model): # Эта модель выглядит неиспользуемой, если это так, лучше удалить
+class IsGetSalary(models.Model): 
     title = models.CharField(max_length=255, verbose_name='Наименование')
     cash = models.PositiveIntegerField(default=0, blank=True, null=True, verbose_name='Сом')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата создание')
@@ -26,30 +25,25 @@ class UserSalary(models.Model):
     
     salary_year = models.PositiveIntegerField(verbose_name=_('Год'))
     salary_month = models.PositiveIntegerField(verbose_name=_('Месяц'))
-
+    salary_period_date = models.DateTimeField(blank=True, null=True, auto_now_add=True)
     period_start_datetime = models.DateTimeField(default=timezone.now, verbose_name=_("Начало текущего расчетного периода"))
-
     total_cash = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'), verbose_name=_('Заработано за этот период'))
     
     is_paid = models.BooleanField(default=False, verbose_name=_("Этот период выплачен"))
     paid_at = models.DateTimeField(null=True, blank=True, verbose_name=_("Дата выплаты этого периода"))
     paid_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='closed_salary_periods', verbose_name=_("Кто выплатил этот период"))
     
-    created_at = models.DateTimeField(auto_now_add=True) # Когда была создана эта запись UserSalary
+    created_at = models.DateTimeField(auto_now_add=True) 
 
     class Meta:
         verbose_name = 'Расчетный период зарплаты сотрудника'
         verbose_name_plural = 'Расчетные периоды зарплаты сотрудников'
-        # Сортировка: сначала невыплаченные, потом по дате начала периода
         ordering = ['is_paid', '-salary_year', '-salary_month', '-period_start_datetime']
-        # Уникальность теперь может быть по (user, period_start_datetime), если нужно
-        # Но для гибкости можно и без нее, если логика создания новой записи будет строгой.
 
     def __str__(self):
         status = "Выплачено" if self.is_paid else "Активен"
         return f"ЗП {self.user.username} за период с {self.period_start_datetime.strftime('%d.%m.%Y %H:%M')} ({status})"
 
-    # Метод mark_as_paid остается похожим, но он закрывает ТЕКУЩИЙ ОБЪЕКТ UserSalary
     def mark_as_paid_and_prepare_next(self, user_who_marked):
         if not self.is_paid:
             self.is_paid = True
