@@ -94,91 +94,107 @@ class UserProfileView(LoginRequiredMixin, UpdateView):
         context.update(admin.site.each_context(self.request))
         context['title'] = 'Мой профиль'
         return context
-    
+   
 class UserSalaryReportView(LoginRequiredMixin, DetailView):
     model = UserSalary
     template_name = "admin/profile/profile_form.html"
-    context_object_name = "usersalary"
+    context_object_name = "usersalary" # Это имя будет использоваться в шаблоне для current_period_object
 
     def get_object(self, queryset=None):
         user = self.request.user
-        # Ищем самый последний по period_start_datetime НЕВЫПЛАЧЕННЫЙ UserSalary для этого пользователя
-        # Можно добавить фильтр по текущему месяцу, если это нужно
-        # current_year = timezone.now().year
-        # current_month = timezone.now().month
-        # .filter(salary_year=current_year, salary_month=current_month)
-
         latest_active_period = UserSalary.objects.filter(
             user=user,
-            is_paid=False 
-        ).order_by('-period_start_datetime').first() # Самый "свежий" активный период
+            is_paid=False
+        ).order_by('-period_start_datetime').first()
+        return latest_active_period
 
-        return latest_active_period # Может быть None, если нет активных
-    
     def get_context_data(self, **kwargs):
-        # ... (логика get_context_data остается похожей, но теперь usersalary - это "кусок" расчета)
-        # В "Истории расчетных периодов" теперь будут все эти "куски"
         context = super().get_context_data(**kwargs)
-        current_period_object = self.object
+        # self.object здесь будет равен результату get_object(), 
+        # и также доступен в шаблоне как {{ usersalary }} из-за context_object_name
+        current_period_object = self.object 
 
-        context['title'] = _("Текущий расчет по зарплате")
+        context['title'] = _("Мой текущий расчетный период") # Изменил заголовок для ясности
         context['current_profile_user'] = self.request.user
 
         if current_period_object:
             context['no_salary_data_found'] = False
-            context['user_role'] = _("Сотрудник") # Адаптируй
-            
-            # Суммируем WorkLog'и, привязанные ИМЕННО К ЭТОМУ UserSalary (периоду)
-            # Это будет использовать M2M связь user_salary.work_log.all()
+            # context['user_role'] = _("Сотрудник") # Замените на реальную логику получения роли, если нужно
+            # Пример:
+            if hasattr(self.request.user, 'employee_profile') and self.request.user.employee_profile.role:
+                 context['user_role'] = self.request.user.employee_profile.get_role_display()
+            else:
+                 context['user_role'] = _("Роль не указана")
+
+
+
             total_items_aggregation = current_period_object.work_log.aggregate(
                 total_processed=Sum('quantity_processed', default=0)
             )
             context['total_items_processed'] = total_items_aggregation['total_processed']
-            
-            context['related_work_logs'] = current_period_object.work_log.select_related(
-                'stage__batch_product__batch', 
-                'stage__batch_product__product'
-            ).all()
 
-            if not current_period_object.is_paid: # Кнопка "Выплатить этот период"
+            # --- ИСПРАВЛЕННЫЙ SELECT_RELATED ---
+            context['related_work_logs'] = current_period_object.work_log.select_related(
+                'stage',                            
+                'stage__batch_product',             # ProcessStage -> BatchProductLink (это одна выборка)
+                'stage__batch_product__batch',      # BatchProductLink -> Batch (это вторая выборка, зависит от первой)
+                'stage__batch_product__product'     # BatchProductLink -> Product (это третья выборка, зависит от первой)
+            ).order_by('-log_time').all()
+
+            if not current_period_object.is_paid:
                 context['mark_paid_url'] = reverse_lazy('accounts:mark_salary_paid', kwargs={'pk': current_period_object.pk})
         else:
             context['no_salary_data_found'] = True
-        
+            # Явно передаем None, чтобы шаблон не падал при обращении к usersalary.что-то_там
+            context['usersalary'] = None
+            context['related_work_logs'] = [] 
+            context['total_items_processed'] = 0
+
+
         # История ВСЕХ периодов для пользователя
+        # Убедимся, что также делаем select_related для paid_by, если он используется в шаблоне истории
         context['user_salary_history'] = UserSalary.objects.filter(
             user=self.request.user
-        ).order_by('-period_start_datetime') # Сначала самые свежие периоды
-        
+        ).select_related('paid_by').order_by('-period_start_datetime')
+
         return context
 
+
 @login_required
-def mark_salary_as_paid(request, pk): # pk - это ID текущего UserSalary, который закрываем
+def mark_salary_as_paid(request, pk):
     user_salary_to_close = get_object_or_404(UserSalary, pk=pk)
 
-    # ... (проверка прав) ...
-    can_mark_paid = request.user.is_superuser or request.user == user_salary_to_close.user
+    can_mark_paid = request.user.is_superuser or request.user.has_perm('app_accounting.can_mark_salary_paid') or request.user == user_salary_to_close.user
+    # Замените 'app_accounting.can_mark_salary_paid' на ваше реальное право доступа, если оно есть
+
     if not can_mark_paid:
         messages.error(request, _("У вас нет прав для выполнения этого действия."))
-        return redirect(reverse_lazy('accounts:profile'))
+        return redirect(reverse_lazy('accounts:profile')) # Убедитесь, что 'accounts:profile' - это правильный URL
 
     if request.method == 'POST':
-        # Используем новый метод модели
-        success, new_salary_period = user_salary_to_close.mark_as_paid_and_prepare_next(request.user)
-        if success:
-            messages.success(request, _("Расчетный период успешно закрыт. Создан новый активный период."))
+        if hasattr(user_salary_to_close, 'mark_as_paid_and_prepare_next'):
+            success, _ = user_salary_to_close.mark_as_paid_and_prepare_next(request.user) # _ для new_salary_period, если он не используется дальше
+            if success:
+                messages.success(request, _("Расчетный период успешно закрыт. Если это был последний активный, новый будет создан при следующей записи работы."))
+            else:
+                messages.info(request, _("Этот расчетный период уже был закрыт ранее или произошла ошибка."))
         else:
-            messages.info(request, _("Этот расчетный период уже был закрыт ранее."))
+            # Базовая логика, если метода mark_as_paid_and_prepare_next нет
+            if not user_salary_to_close.is_paid:
+                user_salary_to_close.is_paid = True
+                user_salary_to_close.paid_at = timezone.now()
+                user_salary_to_close.paid_by = request.user
+                user_salary_to_close.save()
+                messages.success(request, _("Расчетный период успешно закрыт."))
+            else:
+                messages.info(request, _("Этот расчетный период уже был закрыт ранее."))
     else:
-        messages.warning(request, _("Некорректный метод запроса."))
-    
+        messages.warning(request, _("Некорректный метод запроса. Используйте POST."))
+
     return redirect(reverse_lazy('accounts:profile'))
 
+
 def monthly_user_production_report(request):
-    """
-    Отображает отчет о выполненной работе пользователей по типам этапов
-    за текущий месяц и предоставляет возможность скачивания в XLSX.
-    """
     now = timezone.now()
     current_year = now.year
     current_month = now.month
@@ -190,67 +206,60 @@ def monthly_user_production_report(request):
     else:
         first_day_of_next_month = first_day_of_month.replace(month=current_month + 1)
 
-    # --- Фильтрация данных ---
-    # Фильтруем этапы, завершенные (имеющие end_date) в текущем месяце
-    # и имеющие статус 'COMPLETED'.
-    # Также убеждаемся, что пользователь назначен.
     report_queryset = ProcessStage.objects.filter(
         end_date__gte=first_day_of_month,
-        end_date__lt=first_day_of_next_month, # Используем "меньше", чем начало следующего месяца
-        status='COMPLETED', # Или 'CONFIRMED', если это более подходящий статус
+        end_date__lt=first_day_of_next_month,
+        status='COMPLETED',
         assigned_user__isnull=False
-    ).select_related('assigned_user') # Оптимизация запроса к пользователю
+    ).select_related('assigned_user')
 
     report_data = report_queryset.values(
-        'assigned_user', # Группируем по ID пользователя
-        'stage_type'     # Группируем по типу этапа
+        'assigned_user',
+        'stage_type'
     ).annotate(
-        # Получаем ФИО пользователя для отображения
         user_full_name=Concat(
             F('assigned_user__last_name'), Value(' '), F('assigned_user__first_name'),
             output_field=CharField()
         ),
-        username=F('assigned_user__username'), # Или используй username, если ФИО не всегда есть
-        total_completed=Sum('quantity_completed') # Суммируем выполненное количество
+        username=F('assigned_user__username'),
+        total_completed=Sum('quantity_completed', default=0) # Добавил default=0
     ).order_by(
-        'user_full_name', # Сортируем по ФИО
-        'stage_type'      # Затем по типу этапа
-    ).values( # Выбираем только нужные поля для вывода
+        'user_full_name',
+        'stage_type'
+    ).values(
         'user_full_name',
         'username',
         'stage_type',
         'total_completed'
     )
 
-    # --- Обработка запроса на экспорт в XLSX ---
     if request.GET.get('export') == 'xlsx':
-        # Создаем Excel книгу
         wb = Workbook()
         ws = wb.active
-        ws.title = _("Месячный отчет") # Используем перевод
-
-        # Названия месяцев для заголовка файла и листа
+        
         month_names = {
             1: _("Январь"), 2: _("Февраль"), 3: _("Март"), 4: _("Апрель"),
             5: _("Май"), 6: _("Июнь"), 7: _("Июль"), 8: _("Август"),
             9: _("Сентябрь"), 10: _("Октябрь"), 11: _("Ноябрь"), 12: _("Декабрь"),
         }
-        current_month_name = month_names.get(current_month, "")
+        current_month_name = month_names.get(current_month, str(current_month))
 
+        ws.title = _("Отчет {} {}").format(current_month_name, current_year)
         ws.append([_("Отчет по производству за {} {}").format(current_month_name, current_year)])
-        ws.append([]) # Пустая строка для отступа
+        ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=4) # Объединение ячеек для заголовка
+        ws['A1'].alignment = Alignment(horizontal='center') # Выравнивание заголовка по центру
+        ws.append([]) 
 
-        # Заголовки таблицы
         headers = [_('Пользователь (ФИО)'), _('Псевдоним'), _('Тип Этапа'), _('Выполнено (шт.)')]
         ws.append(headers)
+        for cell in ws[ws.max_row]: # Жирный шрифт для заголовков таблицы
+            cell.font = Font(bold=True)
 
-        # Получаем словарь соответствия кодов этапов их отображаемым именам
+
         stage_display_names = dict(ProcessStage.STAGE_CHOICES)
 
-        # Заполняем данными
         for item in report_data:
-            # Получаем читаемое название этапа
-            stage_name = stage_display_names.get(item['stage_type'], item['stage_type']) # Отображаемое имя или код, если не найдено
+            stage_name = stage_display_names.get(item['stage_type'], item['stage_type'])
             ws.append([
                 item['user_full_name'],
                 item['username'],
@@ -258,12 +267,10 @@ def monthly_user_production_report(request):
                 item['total_completed']
             ])
 
-        # Автоматическая ширина колонок (простая версия)
-        for col_idx, header in enumerate(headers, 1):
+        for col_idx, _ in enumerate(headers, 1):
              column_letter = get_column_letter(col_idx)
-             ws.column_dimensions[column_letter].width = 20 # Можешь настроить ширину
+             ws.column_dimensions[column_letter].auto_size = True # Автоподбор ширины
 
-        # Создаем HTTP ответ с файлом
         response = HttpResponse(
             content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         )
@@ -272,16 +279,22 @@ def monthly_user_production_report(request):
         wb.save(response)
         return response
 
-    # --- Отображение HTML страницы ---
     context = {
-        'report_data': list(report_data), # Преобразуем в список для шаблона
-        'current_month': current_month,
+        'report_data': list(report_data),
+        'current_month_name': current_month_name, # Передаем имя месяца
         'current_year': current_year,
-        'stage_choices_dict': dict(ProcessStage.STAGE_CHOICES), # Передаем словарь для отображения названий в шаблоне
-        'page_title': _("Отчет по производству за текущий месяц") # Для <title> и заголовка
+        'stage_choices_dict': dict(ProcessStage.STAGE_CHOICES),
+        'page_title': _("Отчет по производству за {} {}").format(current_month_name, current_year)
     }
     return render(request, 'reports/monthly_user_production_report.html', context)
 
+# Закомментированный код APIView оставляю как есть, так как он не затрагивался
+# class ProductionBatchAPIView(APIView):
+#     def post(self, request):
+#         serializer = ProductionBatchSerializer(data=request.data)
+#         if not serializer.is_valid():
+#             logger.error(f"Error serializers: {serializer.error}")
+#             return Response(serializer.error, status=400)
 
 # class ProductionBatchAPIView(APIView):
 #     def post(self, request):

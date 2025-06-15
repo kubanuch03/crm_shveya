@@ -169,38 +169,82 @@ SIMPLE_JWT = {
 }
 
 
-# import django
-# from .auto_create_start.create_pier_user import SettingsFactory
-# django.setup()
-# settings_users_pier = SettingsFactory().create_all()
-
-
-
+LOGS_DIR = BASE_DIR / 'logs'  # Создаем путь к папке logs в корне проекта
+LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} [{process:d}:{thread:d}] {message}',
+            'style': '{',
         },
+        'simple_time_message': {
+            'format': '{asctime} {levelname} {message}',
+            'style': '{',
+        }
     },
-    'root': {
-        'handlers': ['console'],
-        'level': 'INFO', # Adjust level (DEBUG, INFO, WARNING, ERROR)
+    'handlers': {
+        'console': { # Оставим вывод в консоль для удобства отладки, если понадобится
+            'level': 'DEBUG', # В консоль можно выводить и DEBUG для отладки
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple_time_message',
+        },
+        'app_log_file_daily': { # Для ваших логов приложения
+            'level': 'INFO',     # Минимальный уровень для ваших логов
+            'class': 'logging.handlers.TimedRotatingFileHandler',
+            'filename': LOGS_DIR / 'app.log',
+            'when': 'midnight',
+            'interval': 1,
+            'backupCount': 7,    # Хранить логи за 7 дней
+            'formatter': 'verbose',
+            'encoding': 'utf-8',
+        },
+        'error_log_file_daily': { # Для всех ошибок
+            'level': 'ERROR',    # Только ошибки и критические сообщения
+            'class': 'logging.handlers.TimedRotatingFileHandler',
+            'filename': LOGS_DIR / 'errors.log',
+            'when': 'midnight',
+            'interval': 1,
+            'backupCount': 30,   # Хранить ошибки за 30 дней
+            'formatter': 'verbose',
+            'encoding': 'utf-8',
+        },
     },
     'loggers': {
+        'app_productions': {
+            'handlers': ['app_log_file_daily', 'error_log_file_daily'], # Ваши логи в app.log, ошибки также в errors.log
+            'level': 'INFO', # Писать INFO и выше от вашего приложения
+            'propagate': False, # Не передавать сообщения родительским логгерам
+        },
+        # Логгер для самого Django
         'django': {
-            'handlers': ['console'],
-            'level': 'INFO', # Or WARNING for less verbosity
+            'handlers': ['error_log_file_daily'], # Ошибки Django пойдут в errors.log
+            'level': 'ERROR', # Обрабатывать только ERROR и CRITICAL от Django
+            'propagate': False, # Не обязательно, но можно оставить False
+        },
+        # Логгер для ошибок запросов Django (4XX, 5XX)
+        'django.request': {
+            'handlers': ['error_log_file_daily'],
+            'level': 'ERROR',
             'propagate': False,
         },
-        # Add your app's logger if you want specific config
-        'app_productions': {
-             'handlers': ['console'],
-             'level': 'DEBUG', # More detail for your app during development
-             'propagate': False,
-         },
+        # Можно добавить логгер для ошибок базы данных, если нужно их отдельно отслеживать
+        'django.db.backends': {
+            'handlers': ['error_log_file_daily'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
     },
 }
+
+# Если вы хотите разные уровни логирования в зависимости от DEBUG
+# if DEBUG:
+#     LOGGING['loggers']['django']['level'] = 'DEBUG'
+#     LOGGING['loggers']['app_productions']['level'] = 'DEBUG'
+#     # Можно переопределить и другие уровни для хендлеров или логгеров
+# else:
+#     LOGGING['loggers']['django']['level'] = 'INFO'
+#     LOGGING['loggers']['app_productions']['level'] = 'INFO'
